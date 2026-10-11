@@ -1,0 +1,19 @@
+Ordo
+Copyright (c) 2026 Damir Tadzhiev (@creepstyle). All rights reserved.
+
+This software, including its source code, design, texts and graphics, is proprietary.
+No permission is granted to copy, modify, distribute, sublicense, republish, rebrand
+or use this software or any part of it, in whole or in part, without prior written
+permission from the copyright holder.
+
+Viewing the published website is permitted. Any other use requires permission.
+
+Ordo
+(c) 2026 Дамир Таджиев (@creepstyle). Все права защищены.
+
+Программа, включая исходный код, дизайн, тексты и графику, является проприетарной.
+Копирование, изменение, распространение, повторная публикация, ребрендинг и любое
+иное использование программы или её части без предварительного письменного
+разрешения правообладателя запрещены.
+
+Просмотр опубликованного сайта разрешён. Любое иное использование требует разрешения.

@@ -685,7 +685,7 @@ const Duty = {
     const warn = dutyWindowOpen() ? '' :
       `<div class="notice warn">Вне расписания (будни 8:00–16:30). Действие попадёт в журнал.</div>`;
     const w = sheet(`<h3>Кто дежурит?</h3>
-      <p class="body2" style="margin-top:6px">Пара встанет первой в очереди.</p>
+      <p class="body2" style="margin-top:6px">Выбранные встанут первыми в очереди.</p>
       <div style="margin-top:14px">${pair.map((p,i) => `
         <div class="field"><label>${esc(p.name)} ${ds.has(p.id) ? '<span class="tag amber">должник</span>' : '<span class="tag">по очереди</span>'}</label>
         <select class="inp" data-slot="${esc(p.id)}">

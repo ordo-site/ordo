@@ -687,14 +687,21 @@ const Duty = {
     const w = sheet(`<h3>Кто дежурит?</h3>
       <p class="body2" style="margin-top:6px">Выбранные встанут первыми в очереди.</p>
       <div style="margin-top:14px">${pair.map((p,i) => `
-        <div class="field"><label>${esc(p.name)} ${ds.has(p.id) ? '<span class="tag amber">должник</span>' : '<span class="tag">по очереди</span>'}</label>
+        <div class="field"${i===1 ? ' data-second="1"' : ''}><label>${esc(p.name)} ${ds.has(p.id) ? '<span class="tag amber">должник</span>' : '<span class="tag">по очереди</span>'}</label>
         <select class="inp" data-slot="${esc(p.id)}">
           <option value="">Сам(а), без замены</option>
           ${i===1 ? '<option value="__none">Не назначать — дежурит один</option>' : ''}
           ${opts ? `<optgroup label="Вместо него">${opts}</optgroup>` : ''}
-        </select></div>`).join('')}</div>
+        </select></div>`).join('')}
+        <p class="body2" data-solo-note hidden style="color:var(--sec)">Второй не назначен — дежурит один.</p></div>
       ${warn}
       <div class="actions"><button class="btn btn-q" id="stNo">Отмена</button><button class="btn btn-p" id="stYes">Начать</button></div>`);
+    const secondField = w.querySelector('[data-second]'), soloNote = w.querySelector('[data-solo-note]');
+    const secondSel = secondField ? secondField.querySelector('select') : null;
+    if(secondField && secondSel && soloNote){
+      const syncSolo = () => { const solo = secondSel.value === '__none'; secondField.hidden = solo; soloNote.hidden = !solo; };
+      secondSel.addEventListener('change', syncSolo); syncSolo();
+    }
     w.querySelector('#stNo').onclick = closeSheet;
     w.querySelector('#stYes').onclick = () => run(async () => {
       const ids = [], forIds = {};

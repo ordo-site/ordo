@@ -689,7 +689,7 @@ const Duty = {
       <div style="margin-top:14px">${pair.map((p,i) => `
         <div class="field"><label>${esc(p.name)} ${ds.has(p.id) ? '<span class="tag amber">должник</span>' : '<span class="tag">по очереди</span>'}</label>
         <select class="inp" data-slot="${esc(p.id)}">
-          <option value="">Дежурит сам(а)</option>
+          <option value="">Сам(а), без замены</option>
           ${i===1 ? '<option value="__none">Не назначать — дежурит один</option>' : ''}
           ${opts ? `<optgroup label="Вместо него">${opts}</optgroup>` : ''}
         </select></div>`).join('')}</div>

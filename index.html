@@ -194,6 +194,22 @@ details.faq .policy p{margin:0 0 10px}
 .skel{border-radius:14px;background:var(--fill);min-height:70px;margin-top:12px;animation:pulse 1.4s ease infinite}
 @keyframes pulse{50%{opacity:.5}}
 .timer{font-variant-numeric:tabular-nums;color:var(--sec);font-size:15px}
+
+/* ---------- celebrate (duty closed) ---------- */
+.celebrate{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;pointer-events:none;animation:celFade 1.4s ease forwards}
+.cmark{width:96px;height:96px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center;box-shadow:0 14px 44px rgba(0,0,0,.35);animation:celPop .55s var(--spring) backwards}
+.cmark svg{width:44px;height:44px;stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+@keyframes celPop{from{transform:scale(.3);opacity:0}}
+@keyframes celFade{0%{opacity:0}12%{opacity:1}72%{opacity:1}100%{opacity:0}}
+
+/* ---------- onboard ---------- */
+.onboard{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;align-items:center;padding:0 28px;animation:fade .3s ease}
+.onboard .ocard{max-width:400px;margin:0 auto;width:100%}
+.onboard h1{font-size:44px;line-height:1.06;font-weight:800;letter-spacing:-.024em;margin:12px 0}
+.onboard .actions{display:flex;flex-direction:column;gap:4px;margin-top:32px}
+a.row{color:inherit;text-decoration:none}
+a.row:active{background:var(--fill)}
+
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001s!important;transition-duration:.001s!important}
 }
@@ -226,6 +242,13 @@ const fmt = s => { const d = new Date(s); return isNaN(d) ? String(s||'') : d.to
 const initials = n => esc(String(n||'?').trim().split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase());
 let toastT;
 function toast(m){ toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>toastEl.classList.remove('show'), Math.max(2600, String(m).length*70)); }
+function celebrate(){
+  const d = document.createElement('div');
+  d.className = 'celebrate';
+  d.innerHTML = '<div class="cmark"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></div>';
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 1500);
+}
 function fail(e){ console.error(e); toast(e?.message || 'Что-то пошло не так'); }
 
 const S = { user:null, profile:null, group:null, groups:[], membership:null, people:[], state:{}, stateVer:null, view:'home', orderMode:false, fromCache:false, busy:false };
@@ -375,6 +398,7 @@ const Store = {
       }catch(_){}
       await Store.loadUser();
       Consent.check();
+      Onboard.maybe();
     }catch(e){
       console.error(e);
       if(S.fromCache){ toast('Нет связи: показаны последние данные'); return; }
@@ -591,6 +615,44 @@ const Consent = {
   }
 };
 
+/* ---------------- onboard (once) ---------------- */
+const Onboard = {
+  KEY:'ordo-onboarded-v1',
+  done(){ try{ return !!localStorage.getItem(Onboard.KEY); }catch(_){ return true; } },
+  mark(){ try{ localStorage.setItem(Onboard.KEY, '1'); }catch(_){} },
+  maybe(){
+    if(Onboard.done() || !S.user) return;
+    if(document.getElementById('consentBox')){
+      const t = setInterval(() => {
+        if(!S.user){ clearInterval(t); return; }
+        if(!document.getElementById('consentBox')){ clearInterval(t); Onboard.maybe(); }
+      }, 400);
+      return;
+    }
+    Onboard.show(0);
+  },
+  show(i){
+    const slides = [
+      { eyebrow:'Ordo', title:'Это Ordo.', body:'Дежурство без лишнего. Очередь сама знает, кто следующий, — тебе остаётся только дежурить.',
+        btn:'Дальше', skip:true },
+      { eyebrow:'Как это работает', title:'Вот твоя очередь.', body:'Следи за своей позицией, отмечай дежурства одним касанием. Остальное Ordo сделает сам.',
+        btn:'Понятно', skip:false }
+    ];
+    const s = slides[i];
+    const d = document.createElement('div');
+    d.className = 'onboard'; d.id = 'onboardBox';
+    d.innerHTML = `<div class="ocard"><div class="eyebrow rise">${esc(s.eyebrow)}</div>
+      <h1 class="rise">${esc(s.title)}</h1>
+      <p class="body2 rise">${esc(s.body)}</p>
+      <div class="actions rise"><button class="btn btn-p" id="obNext">${esc(s.btn)}</button>
+      ${s.skip ? '<button class="linkbtn" id="obSkip" style="align-self:center">Пропустить</button>' : ''}</div></div>`;
+    document.body.appendChild(d);
+    const close = () => { Onboard.mark(); d.remove(); };
+    d.querySelector('#obNext').onclick = () => { d.remove(); i + 1 < slides.length ? Onboard.show(i + 1) : close(); };
+    const sk = d.querySelector('#obSkip'); if(sk) sk.onclick = close;
+  }
+};
+
 /* ---------------- duty ---------------- */
 const Duty = {
   start(){
@@ -690,6 +752,7 @@ const Duty = {
       await Store.saveState();
       await Store.audit('duty_finished', { counted, marks, comment });
       closeSheet(); render();
+      if(counted) celebrate();
       toast(counted ? 'Дежурство записано' : 'Не засчитано: пара осталась первой');
     });
   },
@@ -1253,6 +1316,13 @@ function vProfile(){
       <div class="row"><div class="grow">Не было</div><b>${ab}</b></div>
       <div class="row"><div class="grow">Сбежал(а)</div><b>${es}</b></div></div></div>` : ''}
     <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Действия</div><div class="rows">${rows}</div></div>
+    <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Команда</div><div class="rows">
+      <div class="row"><div class="grow"><b>Дамир Таджиев</b><div class="sub">THE CEO · ORDO</div></div><a class="linkbtn" href="https://t.me/creepstyle" target="_blank" rel="noopener">@creepstyle</a></div>
+      <div class="row"><div class="grow"><b>Алексей Дергалёв</b><div class="sub">Глава старост</div></div><a class="linkbtn" href="https://t.me/Alex_Grom_05" target="_blank" rel="noopener">@Alex_Grom_05</a></div>
+    </div></div>
+    <div class="sec"><div class="rows">
+      <a class="row" href="https://pay.cloudtips.ru/p/a2d66131" target="_blank" rel="noopener"><div class="grow">Поддержать Ordo<div class="sub">Проект делает один человек</div></div><span class="chev">›</span></a>
+    </div></div>
     <div class="sec"><div class="eyebrow" style="margin-bottom:10px">Журнал</div>
       ${recent.length ? recent.map((en) => {
         const gi = log.indexOf(en);

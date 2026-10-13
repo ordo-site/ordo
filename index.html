@@ -81,6 +81,8 @@ a{color:var(--accent);text-decoration:none}
 .mk-a{stroke:var(--text)} .mk-b{fill:var(--accent)}
 .brand b{font-size:19px;font-weight:700;letter-spacing:-.01em}
 .brand small{display:block;font-size:12px;font-weight:500;color:var(--sec);line-height:1.2}
+.auth .brand{margin-bottom:26px}
+.auth .brand .mark{width:30px;height:30px;margin-bottom:0}
 .top-actions{display:flex;align-items:center;gap:8px}
 .iconbtn{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--fill);transition:transform .16s var(--spring)}
 .iconbtn:active{transform:scale(.9)}
@@ -636,6 +638,7 @@ const Onboard = {
   mark(){ try{ localStorage.setItem(Onboard.KEY, '1'); }catch(_){} },
   maybe(){
     if(Onboard.done() || !S.user) return;
+    if(document.getElementById('onboardBox')) return;
     if(document.getElementById('consentBox')){
       const t = setInterval(() => {
         if(!S.user){ clearInterval(t); return; }

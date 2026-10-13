@@ -106,6 +106,11 @@ a{color:var(--accent);text-decoration:none}
 .hero{font-size:44px;line-height:1.08;font-weight:800;letter-spacing:-.022em}
 .stitle{font-size:30px;line-height:1.16;font-weight:700;letter-spacing:-.02em}
 .eyebrow{font-size:13px;font-weight:600;color:var(--sec);letter-spacing:.01em}
+.sechead{display:flex;align-items:center;justify-content:space-between;width:100%;background:none;border:0;padding:0;margin:24px 0 10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.sechead:first-child{margin-top:14px}
+.sechead .eyebrow{margin:0}
+.sechead .chev{display:inline-block;transition:transform .18s ease;color:var(--sec);font-size:18px}
+.sechead.open .chev{transform:rotate(90deg)}
 .body2{font-size:15px;line-height:1.45;color:var(--sec)}
 .tiny{font-size:13px;line-height:1.4;color:var(--ter)}
 
@@ -1140,6 +1145,7 @@ async function renderIdeas(el){
     const unread = rows.filter(x => !x.read).length;
     const badge = $('#ideaBadge');
     if(badge){ badge.style.display = unread ? '' : 'none'; badge.textContent = unread + ' нов.'; }
+    if(unread > 0 && !('ideas' in adSecRaw())) adSecOpen('ideas'); /* auto-expand unless user explicitly collapsed */
     el.innerHTML = rows.length ? rows.map(x => `
       <div class="hrow"><div class="grow"><b>${esc(x.author_name)}</b>
         <div class="sub" style="font-size:14px;color:var(--sec);margin-top:2px">${esc(x.body)}</div></div>
@@ -1604,6 +1610,15 @@ function vProfile(){
 }
 
 /* ---------------- admin (discreet curtain) ---------------- */
+const ADSEC_KEY = 'ordo-adsec';
+const ADSEC_DEF = { groups:false, access:true, ideas:false, queue:false, events:false, data:false };
+const adSecRaw = () => { try{ return JSON.parse(localStorage.getItem(ADSEC_KEY) || '{}'); }catch(_){ return {}; } };
+const adSecGet = () => ({ ...ADSEC_DEF, ...adSecRaw() });
+const adSecSet = (k, v) => { const s = adSecRaw(); s[k] = v; try{ localStorage.setItem(ADSEC_KEY, JSON.stringify(s)); }catch(_){} };
+function adSecOpen(key){ /* programmatically open a collapsed admin section */
+  const head = document.querySelector(`[data-sec="${key}"]`), bd = document.querySelector(`[data-secbody="${key}"]`);
+  if(head && bd && bd.hasAttribute('hidden')){ bd.removeAttribute('hidden'); head.classList.add('open'); adSecSet(key, true); }
+}
 async function vAdmin(){
   if(!isStaff()){ S.view = 'profile'; render(); return; }
   shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Администрирование</h1>
@@ -1620,13 +1635,17 @@ async function vAdmin(){
     if(members.error) throw members.error;
     const mrole = new Map((members.data || []).map(m => [m.user_id, m.role]));
     const paused = !!S.group?.settings?.paused;
-    body.innerHTML = `
-    <div class="eyebrow" style="margin:18px 0 10px">Группы</div>
+    const adOpen = adSecGet();
+    const sec = (key, title, inner) => `
+      <button class="sechead${adOpen[key] ? ' open' : ''}" data-sec="${key}"><span class="eyebrow">${title}</span><span class="chev">›</span></button>
+      <div class="secbody" data-secbody="${key}"${adOpen[key] ? '' : ' hidden'}>${inner}</div>`;
+    body.innerHTML =
+    sec('groups', 'Группы', `
     <div class="rows">
       ${S.groups.map(g => `<button class="row" data-gsw="${g.id}"><div class="grow"><b>${esc(g.name)}</b>${g.id === gid ? ' <span class="tag blue">текущая</span>' : ''}</div><span class="chev">›</span></button>`).join('')}
       <button class="row" id="gNew"><div class="grow" style="color:var(--accent)">＋ Новая группа</div></button>
-    </div>
-    <div class="eyebrow" style="margin:26px 0 10px">Доступ</div>
+    </div>`) +
+    sec('access', 'Доступ', `
     <div class="rows">
       <button class="row" id="mkAcc"><div class="grow"><b>Создать аккаунты</b><div class="sub">Для людей без аккаунта, пароли — один раз</div></div><span class="chev">›</span></button>
       ${S.people.filter(p => p.user_id).map(p => {
@@ -1636,21 +1655,27 @@ async function vAdmin(){
         ${p.user_id !== S.user.id ? `<button class="linkbtn" data-role="${esc(p.user_id)}|${isL ? 0 : 1}">${isL ? 'Снять' : 'Староста'}</button>
         <button class="linkbtn" data-rst="${esc(p.id)}">Пароль</button>` : '<span class="tag">вы</span>'}</div>`;
       }).join('')}
-    </div>
-    <div class="eyebrow" style="margin:26px 0 10px">Идеи <span class="tag blue" id="ideaBadge" style="display:none"></span></div>
-    <div id="adIdeas"><div class="skel"></div></div>
-    <div class="eyebrow" style="margin:26px 0 10px">Состояние очереди</div>
+    </div>`) +
+    sec('ideas', `Идеи <span class="tag blue" id="ideaBadge" style="display:none"></span>`, `
+    <div id="adIdeas"><div class="skel"></div></div>`) +
+    sec('queue', 'Состояние очереди', `
     <div class="rows">
       <button class="row" id="adPause"><div class="grow"><b>${paused ? 'Возобновить назначения' : 'Приостановить назначения'}</b></div><span class="chev">›</span></button>
       ${(vers.data || []).map(v => `<div class="row"><div class="grow">${esc(fmt(v.saved_at))}</div><button class="linkbtn" data-ver="${v.id}">Вернуть</button></div>`).join('') || '<div class="row"><div class="grow body2">Версий пока нет</div></div>'}
-    </div>
-    <div class="eyebrow" style="margin:26px 0 10px">События</div>
-    <div id="adAudit"><div class="skel"></div></div>
-    <div class="eyebrow" style="margin:26px 0 10px">Данные</div>
+    </div>`) +
+    sec('events', 'События', `
+    <div id="adAudit"><div class="skel"></div></div>`) +
+    sec('data', 'Данные', `
     <div class="rows">
       <button class="row" id="adExp"><div class="grow">Экспорт в Excel</div><span class="chev">›</span></button>
       <button class="row" id="adCode"><div class="grow">Код группы<div class="sub">${esc(S.group?.join_code || 'не создан')}</div></div><span class="chev">›</span></button>
-    </div>`;
+    </div>`);
+    body.querySelectorAll('[data-sec]').forEach(b => b.onclick = () => {
+      const k = b.dataset.sec, bd = body.querySelector(`[data-secbody="${k}"]`);
+      const open = bd.hasAttribute('hidden');
+      if(open){ bd.removeAttribute('hidden'); b.classList.add('open'); } else { bd.setAttribute('hidden', ''); b.classList.remove('open'); }
+      adSecSet(k, open);
+    });
     $('#gNew').onclick = () => Authz.createGroup();
     body.querySelectorAll('[data-gsw]').forEach(b => b.onclick = () => Authz.switchGroup(b.dataset.gsw));
     $('#mkAcc').onclick = () => Authz.createAccounts();

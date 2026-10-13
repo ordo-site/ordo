@@ -1529,6 +1529,7 @@ function vPeople(){
     .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
     .map(p => {
       const tags = [];
+      if(p.user_id && p.user_id === S.user?.id) tags.push('<span class="tag blue">вы</span>');
       const rl = p.user_id && S.memberRoles ? S.memberRoles[p.user_id] : null;
       if(rl === 'leader' || rl === 'head') tags.push('<span class="tag">староста</span>');
       if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');

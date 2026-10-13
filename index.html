@@ -1412,7 +1412,7 @@ async function vRequests(){
             <button class="btn btn-q" style="min-height:44px;flex:1" data-dec="${r.id}|1">Одобрить</button>
             <button class="btn btn-danger-q" style="min-height:44px;flex:1" data-dec="${r.id}|0">Отклонить</button>
           </div></div></div>`).join('')
-        : `<p class="body2" style="margin-top:8px">Заявок нет. Всё спокойно.</p>`;
+        : `<p class="body2" style="margin-top:10px;color:var(--ter)">Заявок нет. Всё спокойно.</p>`;
     }
     if(isLeader()){
       const mine = await Requests.mine();
@@ -1422,7 +1422,7 @@ async function vRequests(){
           <b>${r.kind === 'add' ? 'Добавить: ' + esc(r.new_name || '?') : 'Убрать: ' + esc(r.people?.name || '?')}</b>
           <div class="sub">${esc(SW[r.status] || r.status)} · ${esc(fmt(r.created_at))}${r.reason ? ' · ' + esc(r.reason) : ''}</div>
         </div><span class="tag ${r.status==='pending'?'amber':r.status==='approved'?'green':'red'}">${esc(SW[r.status] || r.status)}</span></div>`).join('') + `</div>`
-        : `<p class="body2" style="margin-top:8px">Вы ничего не отправляли.</p>`;
+        : `<p class="body2" style="margin-top:10px;color:var(--ter)">Вы ничего не отправляли.</p>`;
       html += `<div style="margin-top:22px"><button class="btn btn-q" id="rqNew" style="width:100%">＋ Новая заявка</button></div>`;
     }
     body.innerHTML = html || '<p class="body2">Нет доступа.</p>';

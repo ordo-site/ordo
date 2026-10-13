@@ -828,6 +828,11 @@ const Duty = {
       });
       if(!ids.length){ toast('Выберите, кто дежурит'); return; }
       if(new Set(ids).size !== ids.length){ toast('Один человек выбран дважды'); return; }
+      { /* stated rule: replacements must not grow the debtor count of the auto pair */
+        const dset = new Set(debtorIds());
+        const autoDebtors = turn.filter(id => dset.has(id)).length;
+        const finalDebtors = ids.filter(id => dset.has(id)).length;
+        if(finalDebtors > autoDebtors){ toast('В паре не больше одного должника'); return; } }
       const names = ids.map(id => S.people.find(p => p.id === id)?.name || '?');
       S.state.current = { ids, names, startedAt:new Date().toISOString(), forIds, mainIds:ids.slice(0,2) };
       /* rotation: spent turns go to the end; paused people keep their stored places */
@@ -1311,7 +1316,7 @@ function parseCsv(text){
   const li = head.findIndex(h => h.includes('фамил')), fi = head.findIndex(h => h.includes('имя'));
   return lines.slice(li < 0 && fi < 0 ? 0 : 1).map(l => {
     const c = l.split(sep).map(s => s.trim());
-    const last = li >= 0 ? c[li] : '', first = fi >= 0 ? c[fi] : (li >= 0 ? '' : c[0]);
+    const last = normName(li >= 0 ? c[li] : ''), first = normName(fi >= 0 ? c[fi] : (li >= 0 ? '' : c[0]));
     const nm = [last, first].filter(Boolean).join(' ');
     return nm ? { name:nm } : null;
   }).filter(Boolean);
@@ -1322,7 +1327,7 @@ function aoaToRows(aoa){
   const li = head.findIndex(h => h.includes('фамил')), fi = head.findIndex(h => h.includes('имя'));
   return aoa.slice(li < 0 && fi < 0 ? 0 : 1).map(r => {
     const last = li >= 0 ? r[li] : '', first = fi >= 0 ? r[fi] : '';
-    const nm = [String(last||'').trim(), String(first||'').trim()].filter(Boolean).join(' ');
+    const nm = [normName(last), normName(first)].filter(Boolean).join(' ');
     return nm ? { name:nm } : null;
   }).filter(Boolean);
 }

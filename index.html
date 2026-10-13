@@ -312,7 +312,7 @@ const toastEl = document.getElementById('toast');
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 /* signature of people+state+roles to skip a no-op re-render after boot (kills the load jerk) */
-const sigPS = () => JSON.stringify([(S.people || []).map(p => { const { claim_code, ...r } = p || {}; return r; }), S.state || {}, S.profile?.role || null, S.membership?.role || null]);
+const sigPS = () => JSON.stringify([(S.people || []).map(p => { const { claim_code, ...r } = p || {}; return r; }), S.state || {}, S.profile?.role || null, S.membership?.role || null, S.memberRoles || {}]);
 function renderAfterBoot(){
   if(S._wasCached){
     S._wasCached = false;
@@ -539,7 +539,7 @@ const Store = {
       S.user = session.user;
       try{
         const c = JSON.parse(localStorage.getItem('ordo-cache-' + S.user.id) || 'null');
-        if(c && c.group){ Object.assign(S, { profile:c.profile, group:c.group, membership:c.membership, people:c.people, state:c.state, stateVer:null, fromCache:true }); S._cacheSig = sigPS(); S._wasCached = true; render(); }
+        if(c && c.group){ Object.assign(S, { profile:c.profile, group:c.group, membership:c.membership, people:c.people, state:c.state, memberRoles:c.memberRoles || {}, stateVer:null, fromCache:true }); if(c.reqN != null) S._reqN = c.reqN; S._cacheSig = sigPS(); S._wasCached = true; render(); }
       }catch(_){}
       await Store.loadUser();
       Consent.check();
@@ -613,10 +613,14 @@ const Store = {
     S.stateVer = s.data?.updated_at || null;
     if(!Array.isArray(S.state.queue) || !S.state.queue.length) S.state.queue = S.people.map(x => x.id);
     S.fromCache = false;
+    Store.saveCache();
+  },
+  saveCache(){
     try{
       localStorage.setItem('ordo-cache-' + S.user.id, JSON.stringify({
         profile:S.profile, group:S.group, membership:S.membership,
-        people:S.people.map(({claim_code, ...r}) => r), state:S.state
+        people:(S.people || []).map(({claim_code, ...r}) => r), state:S.state,
+        memberRoles:S.memberRoles || {}, reqN:(S._reqN != null ? S._reqN : null)
       }));
     }catch(_){}
   },
@@ -627,7 +631,7 @@ const Store = {
     if(S.stateVer) q = q.eq('updated_at', S.stateVer);
     const { data, error } = await q.select('updated_at,state');
     if(error){ try{ await Store.loadGroup(); render(); }catch(_){} throw error; }
-    if(data?.length){ S.stateVer = data[0].updated_at; if(data[0].state) S.state = data[0].state; return; }
+    if(data?.length){ S.stateVer = data[0].updated_at; if(data[0].state) S.state = data[0].state; Store.saveCache(); return; }
     await Store.loadGroup();
     throw new Error('Данные изменил другой человек. Экран обновлён — повторите действие.');
   },
@@ -644,6 +648,7 @@ const Store = {
         S.stateVer = row.updated_at || null;
         S.state = row.state || {};
         if(!Array.isArray(S.state.queue) || !S.state.queue.length) S.state.queue = S.people.map(x => x.id);
+        Store.saveCache();
         toast('Данные обновлены');
         closeSheet(); render(); /* someone else changed the state: drop any open sheet, it's stale */
       })
@@ -1416,7 +1421,7 @@ function shell(content, active){
   </div></div>
   <main class="screen"><div class="wrap vin">${content}</div></main>
   <nav class="tabbar" aria-label="Навигация"><div class="tabbar-in">
-    ${tabs.map(([k,l,ic]) => `<button class="tab${active===k?' on':''}" data-tab="${k}">${ic}<span>${l}</span>${k==='requests'?'<span class="bdg hidden" id="reqBdg"></span>':''}</button>`).join('')}
+    ${tabs.map(([k,l,ic]) => `<button class="tab${active===k?' on':''}" data-tab="${k}">${ic}<span>${l}</span>${k==='requests'?`<span class="bdg${S._reqN > 0 ? '' : ' hidden'}" id="reqBdg">${S._reqN > 0 ? (S._reqN > 9 ? '9+' : S._reqN) : ''}</span>`:''}</button>`).join('')}
   </div></nav>`;
   Theme.apply(document.body.classList.contains('light') ? 'light' : 'dark');
   Easter.apply(Easter.mode);

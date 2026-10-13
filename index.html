@@ -1312,9 +1312,9 @@ function vHome(){
     }
   }
   const nextLine = next.length
-    ? `<button class="linkbtn" id="goQueue" style="margin-top:26px;font-size:16px">Дальше — <b>${esc(next.map(p => p.name).join(' + '))}</b> →</button>` : '';
+    ? `<button class="linkbtn" id="goQueue" style="margin-top:26px;font-size:16px">Дальше — <b>${next.map(p => `<span style="white-space:nowrap">${esc(p.name)}</span>`).join(' + ')}</b> →</button>` : '';
   const debtLine = dnames.length
-    ? `<p class="body2" style="margin-top:14px">Долг: ${esc(dnames.join(', '))} — идут вне очереди.</p>` : '';
+    ? `<p class="body2" style="margin-top:14px">Долг: ${dnames.map(n => `<span style="white-space:nowrap">${esc(n)}</span>`).join(', ')} — идут вне очереди.</p>` : '';
   /* bug #3: graceful unlinked account */
   const meLine = meIdx >= 0
     ? `<p class="tiny" style="margin-top:22px">Вы №${meIdx + 1} в очереди</p>`

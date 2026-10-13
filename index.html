@@ -1559,7 +1559,7 @@ async function vRequests(){
           </div></div></div>`).join('')
         : `<p class="body2" style="margin-top:10px;color:var(--ter)">Заявок нет. Всё спокойно.</p>`;
     }
-    if(isLeader()){
+    if(isLeader() && !isStaff()){
       const mine = await Requests.mine();
       html += `<div class="eyebrow" style="margin:28px 0 4px">Мои заявки</div>`;
       html += mine.length ? `<div class="rows">` + mine.map(r => `
@@ -1568,7 +1568,7 @@ async function vRequests(){
           <div class="sub">${esc(SW[r.status] || r.status)} · ${esc(fmt(r.created_at))}${r.reason ? ' · ' + esc(r.reason) : ''}</div>
         </div><span class="tag ${r.status==='pending'?'amber':r.status==='approved'?'green':'red'}">${esc(SW[r.status] || r.status)}</span></div>`).join('') + `</div>`
         : `<p class="body2" style="margin-top:10px;color:var(--ter)">Вы ничего не отправляли.</p>`;
-      if(!isStaff()) html += `<div style="margin-top:22px"><button class="btn btn-q" id="rqNew" style="width:100%">＋ Новая заявка</button></div>`;
+      html += `<div style="margin-top:22px"><button class="btn btn-q" id="rqNew" style="width:100%">＋ Новая заявка</button></div>`;
     }
     body.innerHTML = html || '<p class="body2">Нет доступа.</p>';
     body.querySelectorAll('[data-dec]').forEach(b => b.onclick = () => {

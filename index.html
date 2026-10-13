@@ -1019,6 +1019,7 @@ const Requests = {
     await run(async () => {
       const r = await db.rpc('decide_person_removal', { p_request_id:id, p_approve:ok });
       if(r.error) throw r.error;
+      S._reqN = null; /* drop badge cache so the count refreshes now */
       await Store.loadGroup(); render();
       toast(ok ? 'Заявка одобрена' : 'Заявка отклонена');
     });
@@ -1237,6 +1238,7 @@ const Authz = {
     await run(async () => {
       const r = await db.rpc('set_group_pause', { p_group_id:S.group.id, p_paused:p });
       if(r.error) throw r.error;
+      S.group.settings = { ...(S.group.settings || {}), paused:p }; /* loadGroup doesn't refetch groups row */
       await Store.loadGroup(); render();
       toast(p ? 'Назначения приостановлены' : 'Назначения возобновлены');
     });

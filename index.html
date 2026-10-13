@@ -1530,8 +1530,7 @@ function vPeople(){
     .map(p => {
       const tags = [];
       const rl = p.user_id && S.memberRoles ? S.memberRoles[p.user_id] : null;
-      if(rl === 'leader') tags.push('<span class="tag">староста</span>');
-      else if(rl === 'head') tags.push('<span class="tag">глава</span>');
+      if(rl === 'leader' || rl === 'head') tags.push('<span class="tag">староста</span>');
       if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');
       if(p.data?.paused) tags.push('<span class="tag">пауза</span>');
       if(!p.user_id) tags.push('<span class="tag red">без аккаунта</span>');

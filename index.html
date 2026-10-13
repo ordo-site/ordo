@@ -1478,23 +1478,16 @@ function vHome(){
     ? `<button class="linkbtn" id="goQueue" style="margin-top:26px;font-size:16px">Дальше — <b>${next.map(p => `<span style="white-space:nowrap">${esc(dname(p))}</span>`).join(' + ')}</b> →</button>` : '';
   const debtLine = dnames.length
     ? `<p class="body2" style="margin-top:14px">Долг: ${dnames.map(n => `<span style="white-space:nowrap">${esc(n)}</span>`).join(', ')} — идут вне очереди.</p>` : '';
-  /* bug #3: graceful unlinked account — link offered to head only; admin never joins the roster */
+  /* unlinked account: staff are never in the duty roster, so no link prompt */
   const meLine = meIdx >= 0
     ? `<p class="tiny" style="margin-top:22px">Вы №${meIdx + 1} в очереди</p>`
-    : (S.profile?.role === 'head' ? `<button class="linkbtn" id="linkMe" style="margin-top:22px;font-size:14px;color:var(--ter)">Вас нет в списке · привязать →</button>` : '');
+    : '';
 
   const html = `${hero}${action}${nextLine}${debtLine}${meLine}`;
   shell(html, 'home');
   const sb = $('#startBtn'); if(sb) sb.onclick = () => Duty.start();
   const fb = $('#finishBtn'); if(fb) fb.onclick = () => Duty.finish();
   const gq = $('#goQueue'); if(gq) gq.onclick = () => { S.view = 'queue'; render(); };
-  const lm = $('#linkMe'); if(lm) lm.onclick = () =>
-    promptBox('Привязка', 'Введите персональный код подключения', 'Привязать', code =>
-      run(async () => {
-        const r = await db.rpc('claim_person', { p_claim_code:code });
-        if(r.error) throw r.error;
-        await Store.loadGroup(); render(); toast('Вы в списке');
-      }));
 }
 
 /* ---------------- queue ---------------- */

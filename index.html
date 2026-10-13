@@ -1367,6 +1367,7 @@ function vPeople(){
   const ds = new Set(debtorIds());
   const list = (filter='') => S.people
     .filter(p => !filter || p.name.toLowerCase().includes(filter.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
     .map(p => {
       const tags = [];
       if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');

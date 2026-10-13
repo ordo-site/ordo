@@ -736,7 +736,7 @@ const Duty = {
         <select class="inp" data-slot="${esc(p.id)}">
           <option value="">Без замены</option>
           ${i===1 ? '<option value="__none">Не назначать — дежурит один</option>' : ''}
-          ${opts ? `<optgroup label="Вместо него">${opts}</optgroup>` : ''}
+          ${opts ? `<optgroup label="Замена">${opts}</optgroup>` : ''}
         </select></div>`).join('')}
         <p class="body2" data-solo-note hidden style="color:var(--sec)">Второй не назначен — дежурит один.</p></div>
       ${warn}

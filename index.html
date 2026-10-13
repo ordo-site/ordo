@@ -262,6 +262,11 @@ const toastEl = document.getElementById('toast');
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt = s => { const d = new Date(s); return isNaN(d) ? String(s||'') : d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); };
+const plural = (n, one, few, many) => { const m10 = n % 10, m100 = n % 100;
+  if(m10 === 1 && m100 !== 11) return one;
+  if(m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many; };
+const peopleWord = n => plural(n, 'человек', 'человека', 'человек');
 const initials = n => esc(String(n||'?').trim().split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase());
 let toastT;
 function toast(m){ toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>toastEl.classList.remove('show'), Math.max(2600, String(m).length*70)); }
@@ -1348,7 +1353,7 @@ function vQueue(){
   }).join('');
   const head = `<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Очередь</h1>
     ${isLeader() ? `<button class="linkbtn" id="ordTgl">${S.orderMode ? 'Готово' : 'Порядок'}</button>` : ''}</div>
-    <p class="body2">${q.length} чел. · должники идут первыми</p>`;
+    <p class="body2">${q.length} ${peopleWord(q.length)} · должники идут первыми</p>`;
   shell(`${head}<div class="sec" style="margin-top:16px">${rows || '<p class="body2">Пока пусто.</p>'}</div>`, 'queue');
   const t = $('#ordTgl'); if(t) t.onclick = () => { S.orderMode = !S.orderMode; render(); };
   document.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => {
@@ -1375,7 +1380,7 @@ function vPeople(){
     }).join('');
   shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Группа</h1>
     <button class="linkbtn" id="addP">＋ Добавить</button></div>
-    <p class="body2">${S.people.length} чел. · код: <b>${esc(S.group?.join_code || '—')}</b></p>
+    <p class="body2">${S.people.length} ${peopleWord(S.people.length)} · код: <b>${esc(S.group?.join_code || '—')}</b></p>
     <div class="field" style="margin-top:14px"><input class="inp" id="pSearch" placeholder="Найти человека" autocomplete="off"></div>
     <div class="rows" id="pList">${list()}</div>
     <button class="linkbtn" id="impP" style="margin-top:14px">Импорт из Excel / CSV</button>`, 'people');

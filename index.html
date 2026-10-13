@@ -418,7 +418,14 @@ function sheet(html){
   const w = document.createElement('div');
   w.className = 'scrim'; w.id = 'sheetWrap';
   w.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
-  w.addEventListener('click', e => { if(e.target === w) closeSheet(); });
+  const born = Date.now();
+  /* iOS ghost click: the tap that opens the sheet can re-fire ~300ms later
+     at the same coordinates — often landing on the sheet's own "Отмена".
+     Swallow every click inside the sheet for the first 400ms. */
+  w.addEventListener('click', e => {
+    if(Date.now() - born < 400){ e.stopPropagation(); e.preventDefault(); return; }
+    if(e.target === w) closeSheet();
+  }, true);
   document.body.appendChild(w);
   document.body.style.overflow = 'hidden';
   const sh = w.querySelector('.sheet');

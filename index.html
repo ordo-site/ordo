@@ -1153,7 +1153,7 @@ async function renderIdeas(el){
           <span class="tiny">${esc(fmt(x.created_at))}</span>
           <div style="display:flex;gap:10px">
             ${x.read ? '' : `<button class="linkbtn" data-iread="${x.id}">Прочитано</button>`}
-            <button class="linkbtn" data-iban="${x.author_id}" data-iname="${esc(x.author_name)}">Запрет</button>
+            <button class="linkbtn" data-iban="${x.author_id}" data-iname="${esc(x.author_name)}">Бан</button>
             <button class="linkbtn danger" data-idel="${x.id}" aria-label="Удалить идею">×</button>
           </div>
         </div></div>`).join('')
@@ -1168,9 +1168,9 @@ async function renderIdeas(el){
         if(d.error) throw d.error; renderIdeas(el); toast('Удалена');
       }), true));
     el.querySelectorAll('[data-iban]').forEach(b => b.onclick = () =>
-      confirmBox('Запретить идеи?', `${b.dataset.iname} больше не сможет отправлять идеи.`, 'Запретить', () => run(async () => {
+      confirmBox('Забанить?', `${b.dataset.iname} больше не сможет отправлять идеи.`, 'Забанить', () => run(async () => {
         const ins = await db.from('suggestion_bans').upsert({ user_id:b.dataset.iban }, { onConflict:'user_id' });
-        if(ins.error) throw ins.error; toast('Запрещено');
+        if(ins.error) throw ins.error; toast('Забанен');
       }), true));
   }catch(e){ el.innerHTML = `<div class="notice">${esc(authErrorMessage(e))}</div>`; }
 }

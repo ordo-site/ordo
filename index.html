@@ -632,7 +632,7 @@ const Store = {
         S.state = row.state || {};
         if(!Array.isArray(S.state.queue) || !S.state.queue.length) S.state.queue = S.people.map(x => x.id);
         toast('Данные обновлены');
-        render();
+        closeSheet(); render(); /* someone else changed the state: drop any open sheet, it's stale */
       })
       .subscribe(st => { if(st === 'CHANNEL_ERROR') console.warn('Ordo realtime: нет подключения'); });
     Store.pres();
@@ -1814,7 +1814,6 @@ function renderNoGroup(){
 function render(){
   if(!S.user){ Auth.login(); return; }
   if(!S.group) return;
-  closeSheet();
   const v = S.view;
   if(v === 'queue') vQueue();
   else if(v === 'people' && isLeader()) vPeople();

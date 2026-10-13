@@ -915,6 +915,9 @@ const Duty = {
   }
 };
 
+/* two words, first letters up: "иванов-  петров " -> "Иванов- Петров" */
+const normName = s => String(s||'').trim().replace(/\s+/g,' ').replace(/\s*-\s*/g,'-').toLowerCase().replace(/(^|[\s\-])([a-zа-яё])/g, (m,p,c) => p + c.toUpperCase());
+
 /* ---------------- people ---------------- */
 const People = {
   add(){
@@ -928,7 +931,7 @@ const People = {
     setTimeout(() => $('#npLast')?.focus(), 80);
     $('#npNo').onclick = closeSheet;
     $('#npYes').onclick = () => {
-      const name = [$('#npLast').value.trim(), $('#npFirst').value.trim()].filter(Boolean).join(' ');
+      const name = [normName($('#npLast').value), normName($('#npFirst').value)].filter(Boolean).join(' ');
       if(!name){ toast('Введите фамилию'); return; }
       const mkAcc = $('#npAcc').checked;
       closeSheet();
@@ -1045,12 +1048,13 @@ const Requests = {
     $('#nrAdd').onclick = () => {
       closeSheet();
       const w = sheet(`<h3>Кого добавить?</h3>
-        <div class="field" style="margin-top:14px"><label>Фамилия и имя</label><input class="inp" id="raName" autocomplete="off" placeholder="Иванов Иван"></div>
+        <div class="field" style="margin-top:14px"><label>Фамилия</label><input class="inp" id="raLast" autocomplete="off" placeholder="Иванов"></div>
+        <div class="field"><label>Имя</label><input class="inp" id="raFirst" autocomplete="off" placeholder="Иван"></div>
         <div class="actions"><button class="btn btn-q" id="raNo">Отмена</button><button class="btn btn-p" id="raYes">Дальше</button></div>`);
       w.querySelector('#raNo').onclick = closeSheet;
       w.querySelector('#raYes').onclick = () => {
-        const nm = w.querySelector('#raName').value.trim();
-        if(!nm){ toast('Введите имя'); return; }
+        const nm = [normName(w.querySelector('#raLast').value), normName(w.querySelector('#raFirst').value)].filter(Boolean).join(' ');
+        if(!nm){ toast('Введите фамилию'); return; }
         closeSheet();
         promptBox('Причина', 'Почему добавить: ' + nm + '?', 'Отправить', reason => {
           run(async () => {

@@ -236,7 +236,9 @@ details.faq summary{font-size:16px;font-weight:600;cursor:pointer;list-style:non
 details.faq summary::-webkit-details-marker{display:none}
 details.faq .policy{font-size:14.5px;color:var(--sec);margin-top:10px;line-height:1.55}
 details.faq .policy p{margin:0 0 10px}
-.avatar{width:46px;height:46px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex:none}
+.avatar{width:46px;height:46px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;flex:none;position:relative}
+.ondot{position:absolute;right:-2px;bottom:-2px;width:12px;height:12px;border-radius:50%;background:#0A84FF;border:2px solid var(--bg);animation:odot 2.2s infinite}
+@keyframes odot{0%{box-shadow:0 0 0 0 rgba(10,132,255,.5)}70%{box-shadow:0 0 0 9px rgba(10,132,255,0)}100%{box-shadow:0 0 0 0 rgba(10,132,255,0)}}
 .hday{font-size:13px;font-weight:600;color:var(--ter);margin:18px 0 6px;text-transform:capitalize}
 .hrow{display:flex;gap:12px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--hair);font-size:15px}
 .hrow:last-child{border-bottom:0}
@@ -465,6 +467,7 @@ const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE
 
 /* ---------------- roles ---------------- */
 const isStaff  = () => ['admin','head'].includes(S.profile?.role);
+const isAdmin  = () => S.profile?.role === 'admin';
 const isLeader = () => S.membership?.role === 'leader' || isStaff();
 const roleName = () => S.profile?.role==='admin' ? 'админ'
   : S.profile?.role==='head' ? 'старший староста'
@@ -619,6 +622,23 @@ const Store = {
         render();
       })
       .subscribe(st => { if(st === 'CHANNEL_ERROR') console.warn('Ordo realtime: нет подключения'); });
+    Store.pres();
+  },
+  pres(){ /* online presence: everyone tracks, only admin sees the dots */
+    if(S._pr){ db.removeChannel(S._pr).catch(()=>{}); S._pr = null; }
+    if(!S.group?.id || !S.user?.id) return;
+    const gid = S.group.id;
+    if(!(S.online instanceof Set)) S.online = new Set();
+    const ch = db.channel('ordo-presence-' + gid);
+    S._pr = ch;
+    ch.on('presence', { event:'sync' }, () => {
+      const on = new Set();
+      Object.values(ch.presenceState()).forEach(ms => (ms || []).forEach(m => { if(m && m.uid) on.add(m.uid); }));
+      S.online = on;
+      paintPresence();
+    }).subscribe(st => {
+      if(st === 'SUBSCRIBED'){ ch.track({ uid:S.user.id }).catch(()=>{}); }
+    });
   }
 };
 
@@ -683,6 +703,8 @@ const Auth = {
   async logout(){
     try{ localStorage.removeItem('ordo-cache-' + S.user?.id); }catch(_){}
     if(S._ch){ try{ await db.removeChannel(S._ch); }catch(_){} S._ch = null; }
+    if(S._pr){ try{ await S._pr.untrack(); await db.removeChannel(S._pr); }catch(_){} S._pr = null; }
+    if(S.online instanceof Set) S.online.clear();
     await db.auth.signOut();
     Object.assign(S, { user:null, profile:null, group:null, groups:[], membership:null, people:[], state:{}, stateVer:null, view:'home', fromCache:false });
     Auth.login();
@@ -1382,6 +1404,12 @@ function paintBadge(){
   if(S._reqN > 0){ b.textContent = S._reqN > 9 ? '9+' : S._reqN; b.classList.remove('hidden'); }
   else b.classList.add('hidden');
 }
+function paintPresence(){ /* admin-only online dots, updated live without full re-render */
+  if(S.profile?.role !== 'admin') return;
+  document.querySelectorAll('[data-ondot]').forEach(el => {
+    el.classList.toggle('hidden', !(S.online instanceof Set && S.online.has(el.dataset.ondot)));
+  });
+}
 
 /* ---------------- home ---------------- */
 function vHome(){
@@ -1471,7 +1499,7 @@ function vPeople(){
       if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');
       if(p.data?.paused) tags.push('<span class="tag">пауза</span>');
       if(!p.user_id) tags.push('<span class="tag red">без аккаунта</span>');
-      return `<div class="row"><div class="avatar">${initials(p.name)}</div>
+      return `<div class="row"><div class="avatar">${initials(p.name)}${isAdmin() && p.user_id ? `<span class="ondot${S.online instanceof Set && S.online.has(p.user_id) ? '' : ' hidden'}" data-ondot="${esc(p.user_id)}"></span>` : ''}</div>
         <div class="grow"><b>${esc(p.name)}</b>${tags.length ? `<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">${tags.join('')}</div>` : ''}</div>
         ${ds.has(p.id) ? `<button class="linkbtn" data-wo="${esc(p.id)}">Списать</button>` : ''}
         ${isStaff() ? `<button class="linkbtn" data-pause="${esc(p.id)}">${p.data?.paused ? 'Вернуть' : 'Пауза'}</button>` : ''}

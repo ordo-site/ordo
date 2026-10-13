@@ -111,6 +111,7 @@ a{color:var(--accent);text-decoration:none}
 .topbar{position:sticky;top:0;z-index:30;background:var(--bar);-webkit-backdrop-filter:blur(22px) saturate(1.6);backdrop-filter:blur(22px) saturate(1.6);border-bottom:1px solid var(--hair)}
 .topbar-in{max-width:620px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top)) 20px 10px;display:flex;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:10px}
+#brandHome{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .brand .mark{width:30px;height:30px}
 .mk-a{stroke:var(--text)} .mk-b{fill:var(--accent)}
 .brand b{font-size:19px;font-weight:700;letter-spacing:-.01em}
@@ -354,7 +355,7 @@ function easterTap(){
   const now = Date.now();
   if(now - _tapT > 2500) _tapN = 0;
   _tapT = now;
-  if(++_tapN >= 5){ _tapN = 0; Easter.cycle(); }
+  if(++_tapN >= 3){ _tapN = 0; Easter.cycle(); }
 }
 
 /* ---------------- icons ---------------- */

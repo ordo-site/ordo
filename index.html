@@ -403,7 +403,8 @@ function authErrorMessage(e){
     staff_only:'Только для администратора и старшего старосты.',
     request_limit:'Слишком много запросов: дождитесь решения по прежним.',
     recently_rejected:'Этот запрос недавно отклонили.',
-    removal_one_pending:'Такой запрос уже ожидает решения.'
+    removal_one_pending:'Такой запрос уже ожидает решения.',
+    claim_code_not_found_or_expired:'Код не найден или истёк. Нужен персональный код — его выдаёт староста, это не код группы.'
   };
   const m = String(e?.message || e || '');
   for(const k in MAP) if(m.includes(k)) return MAP[k];

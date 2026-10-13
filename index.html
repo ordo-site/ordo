@@ -319,7 +319,7 @@ function celebrate(){
   document.body.appendChild(d);
   setTimeout(() => d.remove(), 1500);
 }
-function fail(e){ console.error(e); toast(e?.message || 'Что-то пошло не так'); }
+function fail(e){ console.error(e); toast(authErrorMessage(e)); }
 
 const S = { user:null, profile:null, group:null, groups:[], membership:null, people:[], state:{}, stateVer:null, view:'home', orderMode:false, fromCache:false, busy:false };
 
@@ -518,7 +518,7 @@ const Store = {
       if(S.fromCache){ toast('Нет связи: показаны последние данные'); return; }
       root.innerHTML = `<div class="auth"><div class="wrap"><div class="eyebrow rise">Ordo</div>
         <h1 class="rise" style="font-size:40px;font-weight:800;letter-spacing:-.02em;margin:10px 0">Не удалось<br>загрузить</h1>
-        <p class="body2 rise">${esc(e?.message || 'Ошибка подключения')}</p>
+        <p class="body2 rise">${esc(authErrorMessage(e))}</p>
         <div style="margin-top:22px" class="rise"><button class="btn btn-p" id="retry">Повторить</button>
         <button class="btn btn-q" style="width:100%;margin-top:10px" id="errOut">Выйти</button></div></div></div>`;
       $('#retry').onclick = () => Store.boot();
@@ -800,7 +800,7 @@ const Duty = {
     const warn = dutyWindowOpen() ? '' :
       `<div class="notice warn">Вне расписания (будни 8:00–16:30). Действие попадёт в журнал.</div>`;
     const w = sheet(`<h3>Кто дежурит?</h3>
-      <p class="body2" style="margin-top:6px">Выбранные встанут первыми в очереди.</p>
+      <p class="body2" style="margin-top:6px">В паре не больше одного должника. Если кто-то дежурит за другого, тот не получает долг и уходит в конец очереди.</p>
       <div style="margin-top:14px">${pair.map((p,i) => `
         <div class="field"${i===1 ? ' data-second="1"' : ''}><label>${esc(p.name)} ${ds.has(p.id) ? '<span class="tag amber">должник</span>' : '<span class="tag">по очереди</span>'}</label>
         <select class="inp" data-slot="${esc(p.id)}">
@@ -827,6 +827,7 @@ const Duty = {
         if(v){ ids.push(v); forIds[v] = orig; } else ids.push(orig);
       });
       if(!ids.length){ toast('Выберите, кто дежурит'); return; }
+      if(new Set(ids).size !== ids.length){ toast('Один человек выбран дважды'); return; }
       const names = ids.map(id => S.people.find(p => p.id === id)?.name || '?');
       S.state.current = { ids, names, startedAt:new Date().toISOString(), forIds, mainIds:ids.slice(0,2) };
       /* rotation: spent turns go to the end; paused people keep their stored places */

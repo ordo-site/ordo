@@ -689,17 +689,21 @@ const Onboard = {
         btn:'Дальше', skip:false },
       { eyebrow:'Всегда под рукой', title:'Ordo — на экран «Домой»', install:true, btn:'Готово', skip:false }
     ];
+    // оверлей один на весь гайд: пересоздание давало вспышку (fade .3s) при каждом слайде
+    let d = document.getElementById('onboardBox');
+    if(!d){
+      d = document.createElement('div');
+      d.className = 'onboard'; d.id = 'onboardBox';
+      document.body.appendChild(d);
+    }
     const s = slides[i];
-    const d = document.createElement('div');
-    d.className = 'onboard'; d.id = 'onboardBox';
     d.innerHTML = `<div class="ocard"><div class="eyebrow rise">${esc(s.eyebrow)}</div>
       <h1 class="rise">${esc(s.title)}</h1>
       ${s.install ? installStepsHtml() : `<p class="body2 rise">${esc(s.body)}</p>`}
       <div class="actions rise"><button class="btn btn-p" id="obNext">${esc(s.btn)}</button>
       ${s.skip ? '<button class="linkbtn" id="obSkip" style="align-self:center">Пропустить</button>' : ''}</div></div>`;
-    document.body.appendChild(d);
     const close = () => { Onboard.mark(); d.remove(); };
-    d.querySelector('#obNext').onclick = () => { d.remove(); i + 1 < slides.length ? Onboard.show(i + 1) : close(); };
+    d.querySelector('#obNext').onclick = () => { i + 1 < slides.length ? Onboard.show(i + 1) : close(); };
     const sk = d.querySelector('#obSkip'); if(sk) sk.onclick = close;
   }
 };

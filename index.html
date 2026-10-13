@@ -313,6 +313,17 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const GOTH = '𝔇𝔞𝔪𝔦𝔯';
 const dname = p => (p && (p.name === 'Таджиев Дамир' || p.name === 'Дамир Таджиев')) ? GOTH : (p ? p.name : '');
+/* signature of people+state+roles to skip a no-op re-render after boot (kills the load jerk) */
+const sigPS = () => JSON.stringify([(S.people || []).map(p => { const { claim_code, ...r } = p || {}; return r; }), S.state || {}, S.profile?.role || null, S.membership?.role || null]);
+function renderAfterBoot(){
+  if(S._wasCached){
+    S._wasCached = false;
+    const same = S._cacheSig && S._cacheSig === sigPS();
+    S._cacheSig = null;
+    if(same) return; /* fresh data identical to cache: nothing to repaint */
+  }
+  render();
+}
 const fmt = s => { const d = new Date(s); return isNaN(d) ? String(s||'') : d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); };
 const plural = (n, one, few, many) => { const m10 = n % 10, m100 = n % 100;
   if(m10 === 1 && m100 !== 11) return one;
@@ -530,7 +541,7 @@ const Store = {
       S.user = session.user;
       try{
         const c = JSON.parse(localStorage.getItem('ordo-cache-' + S.user.id) || 'null');
-        if(c && c.group){ Object.assign(S, { profile:c.profile, group:c.group, membership:c.membership, people:c.people, state:c.state, stateVer:null, fromCache:true }); render(); }
+        if(c && c.group){ Object.assign(S, { profile:c.profile, group:c.group, membership:c.membership, people:c.people, state:c.state, stateVer:null, fromCache:true }); S._cacheSig = sigPS(); S._wasCached = true; render(); }
       }catch(_){}
       await Store.loadUser();
       Consent.check();
@@ -573,7 +584,7 @@ const Store = {
       const m = await db.from('group_members').select('group_id,role').eq('group_id', S.group.id).eq('user_id', S.user.id).maybeSingle();
       if(m.error) throw m.error;
       S.membership = m.data || { group_id:S.group.id, role:'leader' };
-      await Store.loadGroup(); Store.subscribe(); S.view = 'home'; render(); return;
+      await Store.loadGroup(); Store.subscribe(); S.view = 'home'; renderAfterBoot(); return;
     }
     const ms = await db.from('group_members').select('group_id,role').eq('user_id', S.user.id);
     if(ms.error) throw ms.error;
@@ -582,7 +593,7 @@ const Store = {
     const g = await db.from('groups').select('*').eq('id', S.membership.group_id).single();
     if(g.error) throw g.error;
     S.group = g.data;
-    await Store.loadGroup(); Store.subscribe(); S.view = 'home'; render();
+    await Store.loadGroup(); Store.subscribe(); S.view = 'home'; renderAfterBoot();
   },
   async loadGroup(){
     const gid = S.group.id;

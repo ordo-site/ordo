@@ -1116,7 +1116,7 @@ const Ideas = {
       if(btn) btn.disabled = false;
       const msg = e?.message || '';
       if(e?.code === '23505' || /duplicate key|unique/i.test(msg)) err('Сегодня вы уже отправляли идею. Возвращайтесь завтра.');
-      else if(e?.code === '42P01' || /suggestions/i.test(msg) && /not exist|not find/i.test(msg)) err('Идеи ещё не включены — идёт настройка, попробуйте позже.');
+      else if(e?.code === '42P01' || /suggestion/i.test(msg) && /not exist|not find/i.test(msg)) err('Идеи ещё не включены — идёт настройка, попробуйте позже.');
       else err('Не отправилось: ' + (msg || 'ошибка'));
     }
   }
@@ -1458,17 +1458,17 @@ function vPeople(){
       return `<div class="row"><div class="avatar">${initials(p.name)}</div>
         <div class="grow"><b>${esc(p.name)}</b>${tags.length ? `<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">${tags.join('')}</div>` : ''}</div>
         ${ds.has(p.id) ? `<button class="linkbtn" data-wo="${esc(p.id)}">Списать</button>` : ''}
-        <button class="linkbtn" data-pause="${esc(p.id)}">${p.data?.paused ? 'Вернуть' : 'Пауза'}</button>
+        ${isStaff() ? `<button class="linkbtn" data-pause="${esc(p.id)}">${p.data?.paused ? 'Вернуть' : 'Пауза'}</button>` : ''}
         <button class="linkbtn danger" data-rm="${esc(p.id)}">Убрать</button></div>`;
     }).join('');
   shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Группа</h1>
-    <button class="linkbtn" id="addP">＋ Добавить</button></div>
+    ${isStaff() ? '<button class="linkbtn" id="addP">＋ Добавить</button>' : ''}</div>
     <p class="body2">${S.people.length} ${peopleWord(S.people.length)} · код: <b>${esc(S.group?.join_code || '—')}</b></p>
     <div class="field" style="margin-top:14px"><input class="inp" id="pSearch" placeholder="Найти человека" autocomplete="off"></div>
     <div class="rows" id="pList">${list()}</div>
-    <button class="linkbtn" id="impP" style="margin-top:14px">Импорт из Excel / CSV</button>`, 'people');
-  $('#addP').onclick = () => People.add();
-  $('#impP').onclick = () => importPeople();
+    ${isStaff() ? '<button class="linkbtn" id="impP" style="margin-top:14px">Импорт из Excel / CSV</button>' : ''}`, 'people');
+  const ap = $('#addP'); if(ap) ap.onclick = () => People.add();
+  const ip = $('#impP'); if(ip) ip.onclick = () => importPeople();
   $('#pSearch').addEventListener('input', e => { $('#pList').innerHTML = list(e.target.value); bindPeopleRows(); });
   bindPeopleRows();
 }

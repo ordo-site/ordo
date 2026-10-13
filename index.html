@@ -1606,7 +1606,7 @@ function vProfile(){
     db.from('suggestions').select('id', { count:'exact', head:true }).eq('group_id', S.group.id).eq('read', false)
       .then(r => {
         const n = r.count || 0;
-        if(n > 0){ const sub = ad.querySelector('.sub'); if(sub) sub.innerHTML += ` · <b style="color:var(--accent)">идей: ${n}</b>`; }
+        if(n > 0){ const sub = ad.querySelector('.sub'); if(sub) sub.innerHTML += ` <span style="white-space:nowrap">· <b style="color:var(--accent)">идей: ${n}</b></span>`; }
       }).catch(() => {});
   }
   $('#pfAbout').onclick = () => {

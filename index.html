@@ -1258,6 +1258,17 @@ const Authz = {
       });
     });
   },
+  renameGroup(){
+    const cur = S.group?.name || '';
+    promptBox('Переименовать группу', `Новое название (сейчас: ${cur})`, 'Сохранить', name => {
+      run(async () => {
+        const r = await db.from('groups').update({ name }).eq('id', S.group.id);
+        if(r.error) throw r.error;
+        S.group.name = name;
+        render(); toast('Группа переименована');
+      });
+    });
+  },
   async restoreVersion(id){
     confirmBox('Откатить состояние?', 'Очередь и история вернутся к выбранной версии. Текущее состояние тоже сохранится.', 'Откатить', () =>
       run(async () => {
@@ -1554,7 +1565,7 @@ async function vRequests(){
           <div class="sub">${esc(SW[r.status] || r.status)} · ${esc(fmt(r.created_at))}${r.reason ? ' · ' + esc(r.reason) : ''}</div>
         </div><span class="tag ${r.status==='pending'?'amber':r.status==='approved'?'green':'red'}">${esc(SW[r.status] || r.status)}</span></div>`).join('') + `</div>`
         : `<p class="body2" style="margin-top:10px;color:var(--ter)">Вы ничего не отправляли.</p>`;
-      html += `<div style="margin-top:22px"><button class="btn btn-q" id="rqNew" style="width:100%">＋ Новая заявка</button></div>`;
+      if(!isStaff()) html += `<div style="margin-top:22px"><button class="btn btn-q" id="rqNew" style="width:100%">＋ Новая заявка</button></div>`;
     }
     body.innerHTML = html || '<p class="body2">Нет доступа.</p>';
     body.querySelectorAll('[data-dec]').forEach(b => b.onclick = () => {
@@ -1676,6 +1687,7 @@ async function vAdmin(){
     <div class="rows">
       ${S.groups.map(g => `<button class="row" data-gsw="${g.id}"><div class="grow"><b>${esc(g.name)}</b>${g.id === gid ? ' <span class="tag blue">текущая</span>' : ''}</div><span class="chev">›</span></button>`).join('')}
       <button class="row" id="gNew"><div class="grow" style="color:var(--accent)">＋ Новая группа</div></button>
+      <button class="row" id="gRename"><div class="grow">Переименовать группу</div><span class="chev">›</span></button>
     </div>`) +
     sec('access', 'Доступ', `
     <div class="rows">
@@ -1709,6 +1721,7 @@ async function vAdmin(){
       adSecSet(k, open);
     });
     $('#gNew').onclick = () => Authz.createGroup();
+    $('#gRename').onclick = () => Authz.renameGroup();
     body.querySelectorAll('[data-gsw]').forEach(b => b.onclick = () => Authz.switchGroup(b.dataset.gsw));
     $('#mkAcc').onclick = () => Authz.createAccounts();
     body.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { const [u, m] = b.dataset.role.split('|'); Authz.setRole(u, m === '1'); });

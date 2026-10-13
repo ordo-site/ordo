@@ -144,6 +144,9 @@ main.screen{padding:26px 0 calc(120px + env(safe-area-inset-bottom,0px))}
 .btn .spin{width:18px;height:18px;border-radius:50%;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;animation:rot .7s linear infinite}
 @keyframes rot{to{transform:rotate(360deg)}}
 .linkbtn{color:var(--accent);font-size:15px;font-weight:500;padding:10px 4px}
+.iabtn{background:var(--fill);border:0;border-radius:12px;min-height:44px;min-width:44px;padding:12px 16px;font-size:15px;font-weight:600;color:var(--accent);-webkit-tap-highlight-color:transparent}
+.iabtn.danger{color:var(--red)}
+.iabtn:active{transform:scale(.97)}
 .linkbtn.danger{color:var(--red)}
 
 /* ---------- fields ---------- */
@@ -1173,10 +1176,10 @@ async function renderIdeas(el){
         <div class="sub" style="font-size:14px;color:var(--sec);margin-top:2px">${esc(x.body)}</div></div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:none">
           <span class="tiny">${esc(fmt(x.created_at))}</span>
-          <div style="display:flex;gap:10px">
-            ${x.read ? '' : `<button class="linkbtn" data-iread="${x.id}">Прочитано</button>`}
-            <button class="linkbtn" data-iban="${x.author_id}" data-iname="${esc(x.author_name)}">Бан</button>
-            <button class="linkbtn danger" data-idel="${x.id}" aria-label="Удалить идею">×</button>
+          <div style="display:flex;gap:8px">
+            ${x.read ? '' : `<button class="iabtn" data-iread="${x.id}">Прочитано</button>`}
+            <button class="iabtn" data-iban="${x.author_id}" data-iname="${esc(x.author_name)}">Бан</button>
+            <button class="iabtn danger" data-idel="${x.id}" aria-label="Удалить идею">×</button>
           </div>
         </div></div>`).join('')
       : '<div class="row"><div class="grow body2">Идей пока нет.</div></div>';
@@ -1189,11 +1192,12 @@ async function renderIdeas(el){
         const d = await db.from('suggestions').delete().eq('id', b.dataset.idel);
         if(d.error) throw d.error; renderIdeas(el); toast('Удалена');
       }), true));
-    el.querySelectorAll('[data-iban]').forEach(b => b.onclick = () =>
+    el.querySelectorAll('[data-iban]').forEach(b => b.onclick = () => {
+      if(b.dataset.iban === S.user?.id){ toast('Себя забанить нельзя'); return; }
       confirmBox('Забанить?', `${b.dataset.iname} больше не сможет отправлять идеи.`, 'Забанить', () => run(async () => {
         const ins = await db.from('suggestion_bans').upsert({ user_id:b.dataset.iban }, { onConflict:'user_id' });
         if(ins.error) throw ins.error; toast('Забанен');
-      }), true));
+      }), true)});
   }catch(e){ el.innerHTML = `<div class="notice">${esc(authErrorMessage(e))}</div>`; }
 }
 

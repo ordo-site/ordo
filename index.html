@@ -423,7 +423,7 @@ function sheet(html){
 }
 function closeSheet(){ const w = document.getElementById('sheetWrap'); if(w) w.remove(); document.body.style.overflow = ''; }
 function confirmBox(title, text, okLabel, onOk, danger){
-  const w = sheet(`<h3>${esc(title)}</h3><p class="body2" style="margin-top:8px">${text}</p>
+  const w = sheet(`<h3>${esc(title)}</h3><p class="body2" style="margin-top:8px">${esc(text)}</p>
     <div class="actions"><button class="btn btn-q" id="cfNo">Отмена</button>
     <button class="btn ${danger?'btn-danger-q':'btn-p'}" id="cfYes">${esc(okLabel)}</button></div>`);
   w.querySelector('#cfNo').onclick = closeSheet;
@@ -815,15 +815,22 @@ const Duty = {
     }
     w.querySelector('#stNo').onclick = closeSheet;
     w.querySelector('#stYes').onclick = () => run(async () => {
-      const ids = [], forIds = {};
+      const ids = [], forIds = {}, turn = [];
       w.querySelectorAll('select[data-slot]').forEach(sel => {
         const orig = sel.dataset.slot, v = sel.value;
         if(v === '__none') return;
+        turn.push(orig);
         if(v){ ids.push(v); forIds[v] = orig; } else ids.push(orig);
       });
       if(!ids.length){ toast('Выберите, кто дежурит'); return; }
       const names = ids.map(id => S.people.find(p => p.id === id)?.name || '?');
       S.state.current = { ids, names, startedAt:new Date().toISOString(), forIds, mainIds:ids.slice(0,2) };
+      /* rotation: spent turns go to the end; paused people keep their stored places */
+      {
+        const turnSet = new Set(turn);
+        const kept = (S.state.queue || []).filter(id => !turnSet.has(id));
+        S.state.queue = kept.concat(turn.filter(id => !kept.includes(id)));
+      }
       await Store.saveState();
       await Store.audit('duty_started', { ids, names });
       closeSheet(); render(); toast('Дежурство началось');
@@ -893,8 +900,11 @@ const Duty = {
     const q = currentQueue();
     const i = q.findIndex(x => x.id === id), j = i + dir;
     if(i < 0 || j < 0 || j >= q.length) return;
-    const order = q.map(x => x.id);
-    [order[i], order[j]] = [order[j], order[i]];
+    /* swap inside the stored queue so paused people (hidden from the display queue) keep their places */
+    const order = (S.state.queue || []).slice();
+    const ia = order.indexOf(q[i].id), ib = order.indexOf(q[j].id);
+    if(ia < 0 || ib < 0) return;
+    [order[ia], order[ib]] = [order[ib], order[ia]];
     S.state.queue = order;
     await run(async () => { await Store.saveState(); render(); });
   }

@@ -413,9 +413,10 @@ function debtorIds(){
 }
 function currentQueue(){
   const map = new Map(S.people.filter(p => !p.data?.paused).map(p => [p.id, p]));
+  const stored = new Set(S.state.queue || []);
   const seen = new Set();
   const q = (S.state.queue || []).map(id => map.get(id)).filter(p => p && !seen.has(p.id) && seen.add(p.id));
-  S.people.forEach(p => { if(!seen.has(p.id) && !p.data?.paused){ seen.add(p.id); q.push(p); } });
+  S.people.forEach(p => { if(!stored.has(p.id) && !p.data?.paused){ q.push(p); } });
   const cur = new Set(S.state.current?.ids || []);
   const d = debtorIds().filter(id => !cur.has(id));
   const ds = new Set(d);

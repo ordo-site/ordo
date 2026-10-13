@@ -1501,6 +1501,8 @@ function vQueue(){
     const tags = [];
     const isMe = me && p.id === me.id;
     if(isMe) tags.push('<span class="tag blue">вы</span>');
+    const rl = p.user_id && S.memberRoles ? S.memberRoles[p.user_id] : null;
+    if(rl === 'leader' || rl === 'head') tags.push('<span class="tag">староста</span>');
     if(cur.has(p.id)) tags.push('<span class="tag blue">сейчас</span>');
     else if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');
     const ord = S.orderMode && isLeader()

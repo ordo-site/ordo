@@ -54,6 +54,40 @@ body.light{
   --sheet:#ffffff;
   --bar:rgba(250,250,252,.8);
 }
+/* easter eggs: glam & hacker (hidden themes) */
+body.glam{
+  color-scheme:light;
+  --bg:#ff9ecf; --bg2:#ffb9dc;
+  --text:#5e0b33;
+  --sec:rgba(94,11,51,.68); --ter:rgba(94,11,51,.4);
+  --hair:rgba(94,11,51,.18);
+  --fill:rgba(209,0,107,.12);
+  --accent:#d1006b; --accent-ink:#ffffff; --accent-soft:rgba(209,0,107,.14);
+  --green:#0a8f3c; --red:#e6004c; --amber:#b8860b;
+  --sheet:#ffd2e8;
+  --bar:rgba(255,158,207,.88);
+  --shadow:0 18px 55px rgba(209,0,107,.3);
+}
+body.glam .brand b::after{content:' 💅';}
+body.hacker{
+  color-scheme:dark;
+  --font:ui-monospace,'SF Mono',Menlo,Consolas,'Liberation Mono',monospace;
+  --bg:#020604; --bg2:#041008;
+  --text:#c9ffd9;
+  --sec:rgba(120,255,170,.6); --ter:rgba(120,255,170,.32);
+  --hair:rgba(0,255,65,.18);
+  --fill:rgba(0,255,65,.1);
+  --accent:#00ff41; --accent-ink:#02120a; --accent-soft:rgba(0,255,65,.12);
+  --green:#00ff41; --red:#ff5555; --amber:#ffe600;
+  --sheet:#031007;
+  --bar:rgba(2,6,4,.85);
+  --shadow:0 18px 55px rgba(0,0,0,.6);
+}
+body.hacker::after{
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:9999;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px, transparent 1px 3px);
+}
+body.hacker .brand b::before{content:'> '; color:var(--accent);}
 body{
   background:var(--bg); color:var(--text);
   font:400 17px/1.45 var(--font);
@@ -269,7 +303,10 @@ const plural = (n, one, few, many) => { const m10 = n % 10, m100 = n % 100;
 const peopleWord = n => plural(n, 'человек', 'человека', 'человек');
 const initials = n => esc(String(n||'?').trim().split(/\s+/).map(x=>x[0]).join('').slice(0,2).toUpperCase());
 let toastT;
-function toast(m){ toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>toastEl.classList.remove('show'), Math.max(2600, String(m).length*70)); }
+function toast(m){
+  if(Easter.mode==='glam') m += ' ✨💅';
+  else if(Easter.mode==='hacker') m = '> ' + m;
+  toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(()=>toastEl.classList.remove('show'), Math.max(2600, String(m).length*70)); }
 function celebrate(){
   const d = document.createElement('div');
   d.className = 'celebrate';
@@ -289,9 +326,36 @@ const Theme = {
     const meta = document.querySelector('meta[name=theme-color]'); if(meta) meta.content = next==='light' ? '#f2f2f7' : '#000000';
     document.querySelectorAll('.themebtn').forEach(b => b.innerHTML = next==='light' ? ICON.moon : ICON.sun);
   },
-  toggle(){ Theme.apply(document.body.classList.contains('light') ? 'dark' : 'light'); },
+  toggle(){ Easter.apply('off'); Theme.apply(document.body.classList.contains('light') ? 'dark' : 'light'); },
   init(){ let t='dark'; try{ t = localStorage.getItem('dutysite-theme') || 'dark'; }catch(_){} Theme.apply(t); }
 };
+
+/* ---------------- easter eggs: hidden themes ---------------- */
+const Easter = {
+  mode:'off',
+  apply(m){
+    this.mode = (m==='glam' || m==='hacker') ? m : 'off';
+    document.body.classList.toggle('glam', this.mode==='glam');
+    document.body.classList.toggle('hacker', this.mode==='hacker');
+    try{ localStorage.setItem('ordo-easter', this.mode); }catch(_){}
+    const meta = document.querySelector('meta[name=theme-color]');
+    if(meta) meta.content = this.mode==='glam' ? '#ff9ecf' : this.mode==='hacker' ? '#020604'
+      : (document.body.classList.contains('light') ? '#f2f2f7' : '#000000');
+  },
+  cycle(){
+    this.apply(this.mode==='off' ? 'glam' : this.mode==='glam' ? 'hacker' : 'off');
+    if(this.mode==='glam') toast('Гламурный режим');
+    else if(this.mode==='hacker') toast('Режим хакера активирован');
+  },
+  init(){ let m='off'; try{ m = localStorage.getItem('ordo-easter') || 'off'; }catch(_){} this.apply(m); }
+};
+let _tapN = 0, _tapT = 0;
+function easterTap(){
+  const now = Date.now();
+  if(now - _tapT > 2500) _tapN = 0;
+  _tapT = now;
+  if(++_tapN >= 5){ _tapN = 0; Easter.cycle(); }
+}
 
 /* ---------------- icons ---------------- */
 const ICON = {
@@ -1264,8 +1328,10 @@ function shell(content, active){
     ${tabs.map(([k,l,ic]) => `<button class="tab${active===k?' on':''}" data-tab="${k}">${ic}<span>${l}</span>${k==='requests'?'<span class="bdg hidden" id="reqBdg"></span>':''}</button>`).join('')}
   </div></nav>`;
   Theme.apply(document.body.classList.contains('light') ? 'light' : 'dark');
+  Easter.apply(Easter.mode);
   $('#themeBtn').onclick = Theme.toggle;
   $('#brandHome').onclick = () => { S.view = 'home'; render(); };
+  $('#brandHome').addEventListener('click', easterTap);
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.view = b.dataset.tab; S.orderMode = false; render(); window.scrollTo(0,0); });
   if(isStaff()) refreshReqBadge();
 }
@@ -1654,6 +1720,7 @@ function render(){
 
 /* ---------------- init ---------------- */
 Theme.init();
+Easter.init();
 setInterval(() => {
   const el = document.getElementById('dutyTimer');
   if(!el) return;

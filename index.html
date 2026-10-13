@@ -597,13 +597,16 @@ const Store = {
   },
   async loadGroup(){
     const gid = S.group.id;
-    const [p, s] = await Promise.all([
+    const [p, s, m] = await Promise.all([
       db.from('people').select('id,group_id,user_id,name,active,data,created_at,claimed_at').eq('group_id', gid).eq('active', true).order('created_at'),
-      db.from('group_state').select('state,updated_at').eq('group_id', gid).single()
+      db.from('group_state').select('state,updated_at').eq('group_id', gid).single(),
+      db.from('group_members').select('user_id,role').eq('group_id', gid)
     ]);
     if(p.error) throw p.error;
     if(s.error) throw s.error;
     S.people = p.data || [];
+    S.memberRoles = {};
+    if(!m.error) (m.data || []).forEach(x => { if(x.user_id) S.memberRoles[x.user_id] = x.role; });
     if(isLeader()){
       const cc = await db.rpc('get_group_claim_codes', { p_group_id: gid });
       if(!cc.error) (cc.data || []).forEach(c => { const x = S.people.find(q => q.id === c.person_id); if(x) x.claim_code = c.claim_code; });
@@ -1526,6 +1529,9 @@ function vPeople(){
     .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
     .map(p => {
       const tags = [];
+      const rl = p.user_id && S.memberRoles ? S.memberRoles[p.user_id] : null;
+      if(rl === 'leader') tags.push('<span class="tag">староста</span>');
+      else if(rl === 'head') tags.push('<span class="tag">глава</span>');
       if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');
       if(p.data?.paused) tags.push('<span class="tag">пауза</span>');
       if(!p.user_id) tags.push('<span class="tag red">без аккаунта</span>');

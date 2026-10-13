@@ -311,8 +311,6 @@ const root = document.getElementById('root');
 const toastEl = document.getElementById('toast');
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const GOTH = '𝔇𝔞𝔪𝔦𝔯';
-const dname = p => (p && (p.name === 'Таджиев Дамир' || p.name === 'Дамир Таджиев')) ? GOTH : (p ? p.name : '');
 /* signature of people+state+roles to skip a no-op re-render after boot (kills the load jerk) */
 const sigPS = () => JSON.stringify([(S.people || []).map(p => { const { claim_code, ...r } = p || {}; return r; }), S.state || {}, S.profile?.role || null, S.membership?.role || null]);
 function renderAfterBoot(){
@@ -1478,7 +1476,7 @@ function vHome(){
     }
   }
   const nextLine = next.length
-    ? `<button class="linkbtn" id="goQueue" style="margin-top:26px;font-size:16px">Дальше — <b>${next.map(p => `<span style="white-space:nowrap">${esc(dname(p))}</span>`).join(' + ')}</b> →</button>` : '';
+    ? `<button class="linkbtn" id="goQueue" style="margin-top:26px;font-size:16px">Дальше — <b>${next.map(p => `<span style="white-space:nowrap">${esc(p.name)}</span>`).join(' + ')}</b> →</button>` : '';
   const debtLine = dnames.length
     ? `<p class="body2" style="margin-top:14px">Долг: ${dnames.map(n => `<span style="white-space:nowrap">${esc(n)}</span>`).join(', ')} — идут вне очереди.</p>` : '';
   /* unlinked account: staff are never in the duty roster, so no link prompt */
@@ -1508,7 +1506,7 @@ function vQueue(){
     const ord = S.orderMode && isLeader()
       ? `<button class="stepbtn" data-mv="${esc(p.id)}|-1" aria-label="Выше">↑</button><button class="stepbtn" data-mv="${esc(p.id)}|1" aria-label="Ниже">↓</button>` : '';
     return `<div class="qrow${isMe ? ' me' : ''}"><span class="qnum">${String(i + 1).padStart(2,'0')}</span>
-      <span class="qname">${esc(dname(p))}</span>${tags.join(' ')}${ord}</div>`;
+      <span class="qname">${esc(p.name)}</span>${tags.join(' ')}${ord}</div>`;
   }).join('');
   const head = `<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Очередь</h1>
     ${isLeader() ? `<button class="linkbtn" id="ordTgl">${S.orderMode ? 'Готово' : 'Порядок'}</button>` : ''}</div>
@@ -1536,7 +1534,7 @@ function vPeople(){
       if(p.data?.paused) tags.push('<span class="tag">пауза</span>');
       if(!p.user_id) tags.push('<span class="tag red">без аккаунта</span>');
       return `<div class="row"><div class="avatar">${initials(p.name)}${isAdmin() && p.user_id ? `<span class="ondot${S.online instanceof Set && S.online.has(p.user_id) ? '' : ' hidden'}" data-ondot="${esc(p.user_id)}"></span>` : ''}</div>
-        <div class="grow"><b>${esc(dname(p))}</b>${tags.length ? `<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">${tags.join('')}</div>` : ''}</div>
+        <div class="grow"><b>${esc(p.name)}</b>${tags.length ? `<div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap">${tags.join('')}</div>` : ''}</div>
         ${ds.has(p.id) ? `<button class="linkbtn" data-wo="${esc(p.id)}">Списать</button>` : ''}
         ${isStaff() ? `<button class="linkbtn" data-pause="${esc(p.id)}">${p.data?.paused ? 'Вернуть' : 'Пауза'}</button>` : ''}
         <button class="linkbtn danger" data-rm="${esc(p.id)}">Убрать</button></div>`;
@@ -1716,7 +1714,7 @@ async function vAdmin(){
       ${S.people.filter(p => p.user_id).map(p => {
         const r = mrole.get(p.user_id);
         const isL = r === 'leader';
-        return `<div class="row"><div class="grow"><b>${esc(dname(p))}</b><div class="sub">${isL ? 'староста' : 'студент'}</div></div>
+        return `<div class="row"><div class="grow"><b>${esc(p.name)}</b><div class="sub">${isL ? 'староста' : 'студент'}</div></div>
         ${p.user_id !== S.user.id ? `<button class="linkbtn" data-role="${esc(p.user_id)}|${isL ? 0 : 1}">${isL ? 'Снять' : 'Староста'}</button>
         <button class="linkbtn" data-rst="${esc(p.id)}">Пароль</button>` : '<span class="tag">вы</span>'}</div>`;
       }).join('')}

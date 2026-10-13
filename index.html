@@ -212,6 +212,11 @@ details.faq .policy p{margin:0 0 10px}
 .onboard .ocard{max-width:400px;margin:0 auto;width:100%}
 .onboard h1{font-size:44px;line-height:1.06;font-weight:800;letter-spacing:-.024em;margin:12px 0}
 .onboard .actions{display:flex;flex-direction:column;gap:4px;margin-top:32px}
+.osteps{margin:20px 0 6px;display:flex;flex-direction:column;gap:14px}
+.ostep{display:flex;gap:14px;align-items:flex-start;text-align:left}
+.ostep .n{flex:none;width:34px;height:34px;border-radius:50%;background:var(--fill);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}
+.ostep .t{font-size:16px;font-weight:600}
+.ostep .s{font-size:13.5px;color:var(--sec);margin-top:3px}
 a.row{color:inherit;text-decoration:none}
 a.row:active{background:var(--fill)}
 
@@ -649,8 +654,19 @@ const Consent = {
 };
 
 /* ---------------- onboard (once) ---------------- */
+function installStepsHtml(){
+  const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  const ios = /iPhone|iPad|iPod/.test(ua) || (typeof navigator !== 'undefined' && navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const steps = ios
+    ? [['1','Нажми <b>«Поделиться»</b>','в Safari, внизу экрана'],['2','Выбери <b>«На экран „Домой“»</b>','Ordo откроется как отдельное приложение']]
+    : /Android/.test(ua)
+    ? [['1','Открой <b>меню ⋮</b>','в углу Chrome'],['2','Нажми <b>«Установить приложение»</b>','или «Добавить на главный экран»']]
+    : [['1','Открой <b>меню браузера</b>','⋮ или ⋯ в углу окна'],['2','Выбери <b>«Установить Ordo»</b>','приложение откроется отдельно от браузера']];
+  return `<div class="osteps rise">${steps.map(([n,t,s]) =>
+    `<div class="ostep"><div class="n">${n}</div><div><div class="t">${t}</div><div class="s">${s}</div></div></div>`).join('')}</div>`;
+}
 const Onboard = {
-  KEY:'ordo-onboarded-v1',
+  KEY:'ordo-onboarded-v2',
   done(){ try{ return !!localStorage.getItem(Onboard.KEY); }catch(_){ return true; } },
   mark(){ try{ localStorage.setItem(Onboard.KEY, '1'); }catch(_){} },
   maybe(){
@@ -670,14 +686,15 @@ const Onboard = {
       { eyebrow:'Ordo', title:'Это Ordo', body:'Дежурство без лишнего. Очередь сама знает, кто следующий, — тебе остаётся только дежурить.',
         btn:'Дальше', skip:true },
       { eyebrow:'Как это работает', title:'Вот твоя очередь', body:'Следи за своей позицией, отмечай дежурства одним касанием. Остальное Ordo сделает сам.',
-        btn:'Понятно', skip:false }
+        btn:'Дальше', skip:false },
+      { eyebrow:'Всегда под рукой', title:'Ordo — на экран «Домой»', install:true, btn:'Готово', skip:false }
     ];
     const s = slides[i];
     const d = document.createElement('div');
     d.className = 'onboard'; d.id = 'onboardBox';
     d.innerHTML = `<div class="ocard"><div class="eyebrow rise">${esc(s.eyebrow)}</div>
       <h1 class="rise">${esc(s.title)}</h1>
-      <p class="body2 rise">${esc(s.body)}</p>
+      ${s.install ? installStepsHtml() : `<p class="body2 rise">${esc(s.body)}</p>`}
       <div class="actions rise"><button class="btn btn-p" id="obNext">${esc(s.btn)}</button>
       ${s.skip ? '<button class="linkbtn" id="obSkip" style="align-self:center">Пропустить</button>' : ''}</div></div>`;
     document.body.appendChild(d);

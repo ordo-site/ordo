@@ -1264,21 +1264,26 @@ const Authz = {
   },
   async setRole(userId, make, btn){
     if(userId === S.user.id) return;
-    await run(async () => {
-      const r = await db.rpc('set_group_role', { p_group_id:S.group.id, p_user_id:userId, p_leader:!!make });
-      if(r.error) throw r.error;
-      if(S.memberRoles) S.memberRoles[userId] = make ? 'leader' : 'student';
-      if(btn && btn.isConnected){
-        /* update just this row: no full render, no scroll jump */
-        const row = btn.closest('.row'), sub = row && row.querySelector('.sub');
-        if(sub) sub.textContent = make ? 'староста' : 'студент';
-        btn.dataset.role = userId + '|' + (make ? '0' : '1');
-        btn.textContent = make ? 'Снять' : 'Староста';
-      } else {
-        render();
-      }
-      toast(make ? 'Права старосты выданы' : 'Права старосты сняты');
-    });
+    if(btn){ btn.disabled = true; btn.style.opacity = '.45'; } /* instant feedback: tap registered */
+    try{
+      await run(async () => {
+        const r = await db.rpc('set_group_role', { p_group_id:S.group.id, p_user_id:userId, p_leader:!!make });
+        if(r.error) throw r.error;
+        if(S.memberRoles) S.memberRoles[userId] = make ? 'leader' : 'student';
+        if(btn && btn.isConnected){
+          /* update just this row: no full render, no scroll jump */
+          const row = btn.closest('.row'), sub = row && row.querySelector('.sub');
+          if(sub) sub.textContent = make ? 'староста' : 'студент';
+          btn.dataset.role = userId + '|' + (make ? '0' : '1');
+          btn.textContent = make ? 'Снять' : 'Староста';
+        } else {
+          render();
+        }
+        toast(make ? 'Права старосты выданы' : 'Права старосты сняты');
+      });
+    }finally{
+      if(btn && btn.isConnected){ btn.disabled = false; btn.style.opacity = ''; }
+    }
   },
   async switchGroup(id){
     try{ localStorage.setItem('dutysite-active-group', id); }catch(_){}

@@ -30,7 +30,8 @@ window.__ORDO_BUILD='ordo-39.0d952220f2d8';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0}
+html,body{margin:0;padding:0;overscroll-behavior-y:none}
+#ptr{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translate(-50%,-80px);z-index:99990;display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--hair);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;color:var(--text);box-shadow:var(--shadow);transition:transform .25s var(--spring);pointer-events:none}#ptr .spin{width:14px;height:14px}
 :root{
   color-scheme:dark;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",system-ui,"Segoe UI",Roboto,sans-serif;
@@ -1320,7 +1321,7 @@ const Authz = {
   async switchGroup(id){
     try{ localStorage.setItem('dutysite-active-group', id); }catch(_){}
     S.view = 'home'; S.orderMode = false;
-    await run(async () => { await Store.loadUser(); });
+    await Store.loadUser();
   },
   createGroup(){
     groupNameSheet('Новая группа', 'Создать', null, name => {
@@ -1820,7 +1821,7 @@ async function vAdmin(){
     });
     $('#gNew').onclick = () => Authz.createGroup();
     $('#gRename').onclick = () => Authz.renameGroup();
-    body.querySelectorAll('[data-gsw]').forEach(b => b.onclick = () => Authz.switchGroup(b.dataset.gsw));
+    body.querySelectorAll('[data-gsw]').forEach(b => b.onclick = () => run(() => Authz.switchGroup(b.dataset.gsw)));
     body.querySelectorAll('[data-gdel]').forEach(b => b.onclick = e => { e.stopPropagation();
       const gname = b.dataset.gname, gdelId = b.dataset.gdel;
       const w = sheet(`<h3>Удалить группу?</h3><p class="body2" style="margin-top:8px">«${esc(gname)}»: люди, очередь, журнал и идеи исчезнут без следа. Аккаунты людей сохранятся. Это нельзя отменить.</p><div class="field" style="margin-top:14px"><label>Для подтверждения введите название группы</label><input class="inp" id="dgIn" autocomplete="off" placeholder="${esc(gname)}"></div><div class="actions"><button class="btn btn-q" id="dgNo">Отмена</button><button class="btn btn-danger-q" id="dgYes">Удалить</button></div>`);
@@ -1940,7 +1941,45 @@ if(!window.supabase){
     else if(ev === 'SIGNED_IN' && session && !S.group){ setTimeout(() => Store.boot().catch(fail), 0); }
   });
   Store.boot();
+  initPTR();
 }
+/* ---------------- pull-to-refresh ---------------- */
+function initPTR(){
+  const el = document.createElement('div');
+  el.id = 'ptr'; el.setAttribute('aria-hidden','true');
+  el.innerHTML = '<span class="spin"></span>Обновление…';
+  document.body.appendChild(el);
+  let y0 = null, pulling = false, dy = 0;
+  const TH = 70;
+  document.addEventListener('touchstart', e => {
+    if(!S.user || S.busy || e.touches.length !== 1){ y0 = null; return; }
+    const t = e.target;
+    if(t.closest && t.closest('.sheet,.modal,input,textarea,select')){ y0 = null; return; }
+    y0 = e.touches[0].clientY; pulling = false; dy = 0;
+  }, { passive:true });
+  document.addEventListener('touchmove', e => {
+    if(y0 === null || e.touches.length !== 1) return;
+    const d = e.touches[0].clientY - y0;
+    if(d <= 0 || window.scrollY > 0){ if(dy > 0){ dy = 0; el.style.transform = ''; } return; }
+    if(d > 8) pulling = true;
+    if(pulling){
+      e.preventDefault();
+      el.style.transition = 'none';
+      dy = Math.min(d * 0.5, 110);
+      el.style.transform = 'translate(-50%,' + (dy - 80) + 'px)';
+    }
+  }, { passive:false });
+  document.addEventListener('touchend', () => {
+    el.style.transition = '';
+    const doIt = pulling && dy >= TH && S.user && !S.busy;
+    y0 = null; pulling = false; dy = 0;
+    if(!doIt){ el.style.transform = ''; return; }
+    el.style.transform = 'translate(-50%,0)';
+    const v = S.view;
+    run(() => Store.loadUser()).then(() => { S.view = v; render(); toast('Обновлено'); el.style.transform = ''; });
+  });
+}
+
 </script>
 </body>
 </html>

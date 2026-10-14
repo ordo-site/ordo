@@ -1039,7 +1039,8 @@ const Duty = {
     if(ia < 0 || ib < 0) return;
     [order[ia], order[ib]] = [order[ib], order[ia]];
     S.state.queue = order;
-    await run(async () => { await Store.saveState(); render(); });
+    const mvName = q[i] ? q[i].name : 'Участник';
+    await run(async () => { await Store.saveState(); await Store.audit('queue_reordered', { person_id: id, name: mvName, from: i + 1, to: j + 1 }); render(); });
   }
 };
 
@@ -1696,6 +1697,7 @@ function initQueueSort(){
           newVisible.forEach(id => { if(id && !seen.has(id)){ merged.push(id); seen.add(id); } });
           S.state.queue = merged;
           await Store.saveState();
+          await Store.audit('queue_reordered', { person_id: pid, name, from: ev.oldIndex + 1, to });
           render();
           toast('Очередь обновлена');
         }),
@@ -1967,14 +1969,14 @@ const AUDIT_CATS = {
   all:   { label:'Все',      test:() => true },
   ppl:   { label:'Люди',     test:a => /^(person_|removal_|add_)/.test(a) },
   acc:   { label:'Доступ',   test:a => /^(password_reset|accounts_created|leader_)/.test(a) },
-  sys:   { label:'Система',  test:a => /^(state_restored|group_paused|group_resumed|duty_outside_schedule|history_deleted|group_created|group_reset)$/.test(a) },
+  sys:   { label:'Система',  test:a => /^(state_restored|group_paused|group_resumed|duty_outside_schedule|history_deleted|group_created|group_reset|queue_reordered)$/.test(a) },
 };
 async function renderAuditFeed(el){
   if(!el) return;
   try{
     const [a, pr] = await Promise.all([
       db.from('audit_log').select('id,actor_id,action,payload,created_at').eq('group_id', S.group.id)
-        .not('action', 'in', '(duty_start_srv,duty_started,duty_finished,queue_reordered,queue_changed,group_join_code_created,person_claimed)')
+        .not('action', 'in', '(duty_start_srv,duty_started,duty_finished,group_join_code_created,person_claimed)')
         .order('id', { ascending:false }).limit(60),
       db.from('profiles').select('id,display_name').eq('college_id', S.profile.college_id)
     ]);
@@ -1990,7 +1992,7 @@ function paintAuditFeed(el){
   const rows = S._auditRows || [], nm = S._auditNames || new Map();
   const f = S.auditFilter || 'all';
   const cat = AUDIT_CATS[f] || AUDIT_CATS.all;
-  const L = { person_created:'Добавлен участник', person_removed:'Участник убран', removal_approved:'Удаление одобрено', removal_rejected:'Удаление отклонено', removal_requested:'Запрос на удаление', add_requested:'Запрос на добавление', add_approved:'Добавление одобрено', add_rejected:'Добавление отклонено', password_reset:'Сброс пароля', accounts_created:'Созданы аккаунты', leader_granted:'Выдан староста', leader_revoked:'Снят староста', state_restored:'Откат состояния', group_paused:'Назначения приостановлены', group_resumed:'Назначения возобновлены', duty_outside_schedule:'Назначение вне расписания', history_deleted:'Удалены записи истории', group_created:'Создана группа', group_reset:'Группа сброшена' };
+  const L = { person_created:'Добавлен участник', person_removed:'Участник убран', removal_approved:'Удаление одобрено', removal_rejected:'Удаление отклонено', removal_requested:'Запрос на удаление', add_requested:'Запрос на добавление', add_approved:'Добавление одобрено', add_rejected:'Добавление отклонено', password_reset:'Сброс пароля', accounts_created:'Созданы аккаунты', leader_granted:'Выдан староста', leader_revoked:'Снят староста', state_restored:'Откат состояния', group_paused:'Назначения приостановлены', group_resumed:'Назначения возобновлены', duty_outside_schedule:'Назначение вне расписания', history_deleted:'Удалены записи истории', group_created:'Создана группа', group_reset:'Группа сброшена', queue_reordered:'Очередь изменена' };
   const chips = Object.entries(AUDIT_CATS).map(([k, c]) =>
     `<button class="fchip${f === k ? ' on' : ''}" data-af="${k}">${c.label}</button>`).join('');
   let html = '', last = '';
@@ -2000,7 +2002,11 @@ function paintAuditFeed(el){
   rows.filter(x => cat.test(x.action)).forEach(x => {
     const d = new Date(x.created_at), lab = dl(d);
     if(lab !== last){ html += `<div class="hday">${esc(lab)}</div>`; last = lab; }
-    html += `<div class="hrow"><div class="grow"><b>${esc(L[x.action] || x.action)}</b><div class="sub" style="font-size:13px;color:var(--sec)">${esc(nm.get(x.actor_id) || 'система')}</div></div><span class="tiny">${esc(d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }))}</span></div>`;
+    let lab2 = L[x.action] || x.action;
+    if(x.action === 'queue_reordered' && x.payload && x.payload.from){
+      lab2 = `\u00AB${x.payload.name || 'участник'}\u00BB: позиция ${x.payload.from} \u2192 ${x.payload.to}`;
+    }
+    html += `<div class="hrow"><div class="grow"><b>${esc(lab2)}</b><div class="sub" style="font-size:13px;color:var(--sec)">${esc(nm.get(x.actor_id) || 'система')}</div></div><span class="tiny">${esc(d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }))}</span></div>`;
   });
   el.innerHTML = `<div class="fchips">${chips}</div>` + (html || '<p class="body2">Событий пока нет.</p>');
   el.querySelectorAll('[data-af]').forEach(b => b.onclick = () => { S.auditFilter = b.dataset.af; paintAuditFeed(); });

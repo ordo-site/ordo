@@ -248,8 +248,6 @@ details.faq .policy p{margin:0 0 10px}
 .hrow:last-child{border-bottom:0}
 .skel{border-radius:14px;background:var(--fill);min-height:70px;margin-top:12px;animation:pulse 1.4s ease infinite}
 @keyframes pulse{50%{opacity:.5}}
-.fadein{animation:fadein .35s ease}
-@keyframes fadein{from{opacity:0}}
 .timer{font-variant-numeric:tabular-nums;color:var(--sec);font-size:15px}
 
 /* ---------- celebrate (duty closed) ---------- */
@@ -1575,7 +1573,7 @@ async function vRequests(){
            : `<div class="eyebrow" style="margin:28px 0 4px">Мои заявки</div>`) +
     `<div id="rqList"></div></div>`, 'requests');
   const list = document.getElementById('rqList');
-  const paint = h => { list.innerHTML = `<div class="fadein">${h}</div>`; };
+  const paint = h => { list.innerHTML = `<div class="vin">${h}</div>`; };
   try{
     if(staff){
       const items = await Requests.pending(true);

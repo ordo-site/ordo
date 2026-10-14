@@ -1881,16 +1881,13 @@ function adSecOpen(key){ /* programmatically open a collapsed admin section */
 }
 async function vAdmin(){
   if(!isStaff()){ S.view = 'profile'; render(); return; }
-  if(!document.getElementById('adBody')){
+  const freshChrome = !document.getElementById('adBody');
+  if(freshChrome){
     /* first entry: build chrome; re-renders only refill the body (no scroll jump) */
     shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Администрирование</h1>
       <button class="linkbtn" id="adBack">Назад</button></div>
       <div id="adBody"></div>`, 'profile');
     $('#adBack').onclick = () => { S.view = 'profile'; render(); };
-  } else {
-    /* каркас переиспользуется — переигрываем анимацию входа */
-    const wrap = root.querySelector('.wrap');
-    if(wrap){ wrap.classList.remove('vin'); void wrap.offsetWidth; wrap.classList.add('vin'); }
   }
   const body = $('#adBody');
   try{
@@ -1965,6 +1962,7 @@ async function vAdmin(){
     $('#adCode').onclick = () => Authz.ensureJoinCode();
     renderIdeas($('#adIdeas'));
     renderAuditFeed($('#adAudit'));
+    if(!freshChrome){ body.classList.remove('vin'); void body.offsetWidth; body.classList.add('vin'); }
   }catch(e){ body.innerHTML = `<div class="notice">${esc(authErrorMessage(e))}</div>`; }
 }
 const AUDIT_CATS = {

@@ -466,11 +466,11 @@ function confirmBox(title, text, okLabel, onOk, danger){
   w.querySelector('#cfNo').onclick = closeSheet;
   w.querySelector('#cfYes').onclick = () => { closeSheet(); onOk(); };
 }
-function promptBox(title, label, okLabel, cb, multiline){
+function promptBox(title, label, okLabel, cb, multiline, initial){
   const w = sheet(`<h3>${esc(title)}</h3><div class="field" style="margin-top:14px"><label>${esc(label)}</label>
     ${multiline
-      ? '<textarea class="inp" id="pbIn" rows="3"></textarea>'
-      : '<input class="inp" id="pbIn" autocomplete="off">'}
+      ? `<textarea class="inp" id="pbIn" rows="3">${esc(initial||'')}</textarea>`
+      : `<input class="inp" id="pbIn" autocomplete="off" value="${esc(initial||'')}">`}
     </div><div class="actions"><button class="btn btn-q" id="pbNo">Отмена</button>
     <button class="btn btn-p" id="pbYes">${esc(okLabel)}</button></div>`);
   const inp = w.querySelector('#pbIn');
@@ -983,6 +983,8 @@ const Duty = {
 };
 
 /* two words, first letters up: "иванов-  петров " -> "Иванов- Петров" */
+const GROUP_NAME_RE = /^[1-4][А-ЯЁ]{2,4}\d{2}Н$/;
+const GROUP_NAME_HINT = 'Формат названия: 3СА24Н — курс (1–4), специальность, год поступления и «Н»';
 const normName = s => String(s||'').trim().replace(/\s+/g,' ').replace(/\s*-\s*/g,'-').toLowerCase().replace(/(^|[\s\-])([a-zа-яё])/g, (m,p,c) => p + c.toUpperCase());
 
 /* ---------------- people ---------------- */
@@ -1292,8 +1294,10 @@ const Authz = {
     S.view = 'home'; S.orderMode = false;
     await run(async () => { await Store.loadUser(); });
   },
-  createGroup(){
-    promptBox('Новая группа', 'Название группы', 'Создать', name => {
+  createGroup(initial){
+    promptBox('Новая группа', 'Название группы (например, 3СА24Н)', 'Создать', name => {
+      name = String(name||'').trim().toUpperCase();
+      if(!GROUP_NAME_RE.test(name)){ toast(GROUP_NAME_HINT); Authz.createGroup(name); return; }
       run(async () => {
         const g = await db.from('groups').insert({ college_id:S.profile.college_id, name }).select().single();
         if(g.error) throw g.error;
@@ -1303,11 +1307,13 @@ const Authz = {
         await Authz.switchGroup(g.data.id);
         toast('Группа создана');
       });
-    });
+    }, false, initial);
   },
-  renameGroup(){
+  renameGroup(initial){
     const cur = S.group?.name || '';
     promptBox('Переименовать группу', `Новое название (сейчас: ${cur})`, 'Сохранить', name => {
+      name = String(name||'').trim().toUpperCase();
+      if(!GROUP_NAME_RE.test(name)){ toast(GROUP_NAME_HINT); Authz.renameGroup(name); return; }
       run(async () => {
         const r = await db.from('groups').update({ name }).eq('id', S.group.id);
         if(r.error) throw r.error;
@@ -1790,7 +1796,13 @@ async function vAdmin(){
     $('#gNew').onclick = () => Authz.createGroup();
     $('#gRename').onclick = () => Authz.renameGroup();
     body.querySelectorAll('[data-gsw]').forEach(b => b.onclick = () => Authz.switchGroup(b.dataset.gsw));
-    body.querySelectorAll('[data-gdel]').forEach(b => b.onclick = e => { e.stopPropagation(); confirmBox('Удалить группу?', `«${b.dataset.gname}»: люди, очередь, журнал и идеи исчезнут без следа. Аккаунты людей сохранятся.`, 'Удалить', () => Authz.deleteGroup(b.dataset.gdel), true); });
+    body.querySelectorAll('[data-gdel]').forEach(b => b.onclick = e => { e.stopPropagation();
+      const gname = b.dataset.gname, gdelId = b.dataset.gdel;
+      const w = sheet(`<h3>Удалить группу?</h3><p class="body2" style="margin-top:8px">«${esc(gname)}»: люди, очередь, журнал и идеи исчезнут без следа. Аккаунты людей сохранятся. Это нельзя отменить.</p><div class="field" style="margin-top:14px"><label>Для подтверждения введите название группы</label><input class="inp" id="dgIn" autocomplete="off" placeholder="${esc(gname)}"></div><div class="actions"><button class="btn btn-q" id="dgNo">Отмена</button><button class="btn btn-danger-q" id="dgYes">Удалить</button></div>`);
+      setTimeout(() => w.querySelector('#dgIn')?.focus(), 80);
+      w.querySelector('#dgNo').onclick = closeSheet;
+      w.querySelector('#dgYes').onclick = () => { if(w.querySelector('#dgIn').value.trim() !== gname){ toast('Название не совпало'); return; } closeSheet(); Authz.deleteGroup(gdelId); };
+    });
     $('#mkAcc').onclick = () => Authz.createAccounts();
     body.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { const [u, m] = b.dataset.role.split('|'); Authz.setRole(u, m === '1', b); });
     body.querySelectorAll('[data-rst]').forEach(b => b.onclick = () => confirmBox('Сбросить пароль?', 'Старый пароль перестанет работать, новый покажем один раз.', 'Сбросить', () => Authz.resetPassword(b.dataset.rst), true));

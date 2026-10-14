@@ -1677,6 +1677,7 @@ function initQueueSort(){
     handle: '.qgrip',
     ghostClass: 's-ghost',
     dragClass: 's-drag',
+    onStart(){ if(window.__ptrCancel) window.__ptrCancel(); },
     onEnd(ev){
       if(ev.oldIndex === ev.newIndex) return;
       const pid = ev.item && ev.item.dataset.pid;
@@ -1882,6 +1883,10 @@ async function vAdmin(){
       <button class="linkbtn" id="adBack">Назад</button></div>
       <div id="adBody"></div>`, 'profile');
     $('#adBack').onclick = () => { S.view = 'profile'; render(); };
+  } else {
+    /* каркас переиспользуется — переигрываем анимацию входа */
+    const wrap = root.querySelector('.wrap');
+    if(wrap){ wrap.classList.remove('vin'); void wrap.offsetWidth; wrap.classList.add('vin'); }
   }
   const body = $('#adBody');
   try{
@@ -2114,7 +2119,8 @@ function initPTR(){
   document.addEventListener('touchstart', e => {
     if(!S.user || S.busy || e.touches.length !== 1){ y0 = null; return; }
     const t = e.target;
-    if(t.closest && t.closest('.sheet,.modal,input,textarea,select')){ y0 = null; return; }
+    if(t.closest && t.closest('.sheet,.modal,input,textarea,select,.qgrip')){ y0 = null; return; }
+  window.__ptrCancel = () => { y0 = null; pulling = false; dy = 0; el.style.transform = ''; };
     y0 = e.touches[0].clientY; pulling = false; dy = 0;
   }, { passive:true });
   document.addEventListener('touchmove', e => {

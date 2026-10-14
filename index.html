@@ -142,7 +142,8 @@ main.screen{padding:26px 0 calc(120px + env(safe-area-inset-bottom,0px))}
 .btn-q{background:var(--fill);color:var(--text)}
 .btn-danger-q{background:rgba(255,69,58,.14);color:var(--red)}
 .btn[disabled]{opacity:.55}
-.btn .spin{width:18px;height:18px;border-radius:50%;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;animation:rot .7s linear infinite}
+.spin{display:inline-block;flex:none;border-radius:50%;border:2.5px solid rgba(255,255,255,.35);border-top-color:#fff;animation:rot .7s linear infinite}
+.btn .spin{width:18px;height:18px}
 @keyframes rot{to{transform:rotate(360deg)}}
 .linkbtn{color:var(--accent);font-size:15px;font-weight:500;padding:10px 4px}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
@@ -186,6 +187,10 @@ button.row:active{background:var(--fill)}
 .qrow:last-child{border-bottom:0}
 .qnum{font-size:15px;font-weight:600;color:var(--ter);width:30px;font-variant-numeric:tabular-nums}
 .qrow.me .qnum{color:var(--accent)}
+.qgrip{flex:none;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--ter);font-size:15px;letter-spacing:3px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.qgrip:active{cursor:grabbing;color:var(--sec)}
+.s-ghost{opacity:.35}
+.s-drag{box-shadow:0 18px 44px rgba(0,0,0,.45)}
 .qname{flex:1;font-size:18px;font-weight:600;letter-spacing:-.01em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .qname small{display:block;font-size:13px;font-weight:400;color:var(--sec)}
 .stepbtn{width:40px;height:40px;border-radius:50%;background:var(--fill);font-size:18px;display:flex;align-items:center;justify-content:center}
@@ -299,6 +304,7 @@ a.row:active{background:var(--fill)}
 <div id="root"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.8"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
 <script>
 'use strict';
 /* ============================================================
@@ -461,11 +467,11 @@ function sheet(html, opts){
   return w;
 }
 function closeSheet(){ const w = document.getElementById('sheetWrap'); if(w) w.remove(); document.body.style.overflow = ''; }
-function confirmBox(title, text, okLabel, onOk, danger){
+function confirmBox(title, text, okLabel, onOk, danger, onCancel){
   const w = sheet(`<h3>${esc(title)}</h3><p class="body2" style="margin-top:8px">${esc(text)}</p>
     <div class="actions"><button class="btn btn-q" id="cfNo">Отмена</button>
     <button class="btn ${danger?'btn-danger-q':'btn-p'}" id="cfYes">${esc(okLabel)}</button></div>`);
-  w.querySelector('#cfNo').onclick = closeSheet;
+  w.querySelector('#cfNo').onclick = () => { closeSheet(); if(onCancel) onCancel(); };
   w.querySelector('#cfYes').onclick = () => { closeSheet(); onOk(); };
 }
 function promptBox(title, label, okLabel, cb, multiline, initial){
@@ -1585,18 +1591,61 @@ function vQueue(){
     if(cur.has(p.id)) tags.push('<span class="tag blue">сейчас</span>');
     else if(ds.has(p.id)) tags.push('<span class="tag amber">долг</span>');
     const ord = S.orderMode && isLeader()
-      ? `<button class="stepbtn" data-mv="${esc(p.id)}|-1" aria-label="Выше">↑</button><button class="stepbtn" data-mv="${esc(p.id)}|1" aria-label="Ниже">↓</button>` : '';
-    return `<div class="qrow${isMe ? ' me' : ''}"><span class="qnum">${String(i + 1).padStart(2,'0')}</span>
+      ? (window.Sortable
+        ? `<span class="qgrip" role="button" aria-label="Перетащить">⋮⋮</span>`
+        : `<button class="stepbtn" data-mv="${esc(p.id)}|-1" aria-label="Выше">↑</button><button class="stepbtn" data-mv="${esc(p.id)}|1" aria-label="Ниже">↓</button>`) : '';
+    return `<div class="qrow${isMe ? ' me' : ''}" data-pid="${esc(p.id)}"><span class="qnum">${String(i + 1).padStart(2,'0')}</span>
       <span class="qname">${esc(p.name)}</span>${tags.join(' ')}${ord}</div>`;
   }).join('');
   const head = `<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Очередь</h1>
     ${isLeader() ? `<button class="linkbtn" id="ordTgl">${S.orderMode ? 'Готово' : 'Порядок'}</button>` : ''}</div>
     <p class="body2">${q.length} ${peopleWord(q.length)} · должники идут первыми</p>`;
-  shell(`${head}<div class="sec" style="margin-top:16px">${rows || '<p class="body2">Пока пусто.</p>'}</div>`, 'queue');
+  shell(`${head}<div class="sec qlist" id="qList" style="margin-top:16px">${rows || '<p class="body2">Пока пусто.</p>'}</div>`, 'queue');
   const t = $('#ordTgl'); if(t) t.onclick = () => { S.orderMode = !S.orderMode; render(); };
   document.querySelectorAll('[data-mv]').forEach(b => b.onclick = () => {
     const [id, d] = b.dataset.mv.split('|');
     Duty.move(id, +d);
+  });
+  initQueueSort();
+}
+
+/* Перетаскивание очереди: ручка .qgrip, подтверждение при отпускании.
+   Людей на паузе в показе нет, но их места в сохранённой очереди не трогаем. */
+function initQueueSort(){
+  if(S._sortable){ try{ S._sortable.destroy(); }catch(_){} S._sortable = null; }
+  if(!window.Sortable || !S.orderMode || !isLeader()) return;
+  const box = document.getElementById('qList');
+  if(!box || !box.querySelector('.qgrip')) return;
+  S._sortable = new Sortable(box, {
+    animation: 180,
+    handle: '.qgrip',
+    ghostClass: 's-ghost',
+    dragClass: 's-drag',
+    onEnd(ev){
+      if(ev.oldIndex === ev.newIndex) return;
+      const pid = ev.item && ev.item.dataset.pid;
+      const person = S.people.find(p => p.id === pid);
+      const name = person ? person.name : 'Участник';
+      const to = ev.newIndex + 1;
+      const total = box.querySelectorAll('.qrow').length;
+      const newVisible = Array.from(box.querySelectorAll('.qrow')).map(r => r.dataset.pid);
+      confirmBox('Переместить?', `«${esc(name)}» — на позицию ${to} из ${total}`, 'Переместить',
+        () => run(async () => {
+          const stored = (S.state.queue || []).slice();
+          const vis = new Set(newVisible);
+          const it = newVisible[Symbol.iterator]();
+          const merged = stored.map(id => vis.has(id) ? it.next().value : id);
+          const seen = new Set(merged);
+          newVisible.forEach(id => { if(id && !seen.has(id)){ merged.push(id); seen.add(id); } });
+          S.state.queue = merged;
+          await Store.saveState();
+          render();
+          toast('Очередь обновлена');
+        }),
+        false,
+        () => render()
+      );
+    }
   });
 }
 

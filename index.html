@@ -480,6 +480,35 @@ function promptBox(title, label, okLabel, cb, multiline, initial){
   w.querySelector('#pbYes').onclick = go;
   inp.addEventListener('keydown', e => { if(e.key === 'Enter' && !multiline) go(); });
 }
+/* sheet with separate fields for group name: course + specialty + year (+ fixed Н) */
+function groupNameSheet(title, okLabel, initial, onOk){
+  const ini = initial || {};
+  const w = sheet(`<h3>${esc(title)}</h3>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <div class="field" style="flex:0 0 62px"><label>Курс</label><input class="inp" id="gnC" inputmode="numeric" maxlength="1" placeholder="3" value="${esc(ini.c||'')}" autocomplete="off"></div>
+      <div class="field" style="flex:1"><label>Специальность</label><input class="inp" id="gnS" maxlength="4" placeholder="СА" value="${esc(ini.s||'')}" autocomplete="off" style="text-transform:uppercase"></div>
+      <div class="field" style="flex:0 0 72px"><label>Год</label><input class="inp" id="gnY" inputmode="numeric" maxlength="2" placeholder="24" value="${esc(ini.y||'')}" autocomplete="off"></div>
+      <div class="field" style="flex:0 0 50px"><label>&nbsp;</label><div class="inp" aria-hidden="true" style="text-align:center;color:var(--ter)">Н</div></div>
+    </div>
+    <p class="body2" style="margin-top:10px">Получится: <b id="gnPrev">—</b></p>
+    <div class="actions"><button class="btn btn-q" id="gnNo">Отмена</button><button class="btn btn-p" id="gnYes">${esc(okLabel)}</button></div>`);
+  const c = w.querySelector('#gnC'), sp = w.querySelector('#gnS'), y = w.querySelector('#gnY'), prev = w.querySelector('#gnPrev');
+  const norm = () => ({ c:c.value.trim(), s:sp.value.trim().toUpperCase(), y:y.value.trim() });
+  const upd = () => { const n = norm();
+    prev.textContent = (/^[1-4]$/.test(n.c) && /^[А-ЯЁ]{2,4}$/.test(n.s) && /^\d{2}$/.test(n.y)) ? n.c+n.s+n.y+'Н' : '—'; };
+  [c, sp, y].forEach(i => i.addEventListener('input', upd));
+  upd();
+  setTimeout(() => c.focus(), 80);
+  w.querySelector('#gnNo').onclick = closeSheet;
+  w.querySelector('#gnYes').onclick = () => {
+    const n = norm();
+    if(!/^[1-4]$/.test(n.c)){ toast('Курс — цифра от 1 до 4'); c.focus(); return; }
+    if(!/^[А-ЯЁ]{2,4}$/.test(n.s)){ toast('Специальность — 2–4 буквы кириллицей'); sp.focus(); return; }
+    if(!/^\d{2}$/.test(n.y)){ toast('Год поступления — две цифры'); y.focus(); return; }
+    closeSheet();
+    onOk(n.c+n.s+n.y+'Н');
+  };
+}
 /* run: serialized async with global guard */
 async function run(f){
   if(S.busy) return; S.busy = true;
@@ -983,8 +1012,6 @@ const Duty = {
 };
 
 /* two words, first letters up: "иванов-  петров " -> "Иванов- Петров" */
-const GROUP_NAME_RE = /^[1-4][А-ЯЁ]{2,4}\d{2}Н$/;
-const GROUP_NAME_HINT = 'Формат названия: 3СА24Н — курс (1–4), специальность, год поступления и «Н»';
 const normName = s => String(s||'').trim().replace(/\s+/g,' ').replace(/\s*-\s*/g,'-').toLowerCase().replace(/(^|[\s\-])([a-zа-яё])/g, (m,p,c) => p + c.toUpperCase());
 
 /* ---------------- people ---------------- */
@@ -1294,10 +1321,8 @@ const Authz = {
     S.view = 'home'; S.orderMode = false;
     await run(async () => { await Store.loadUser(); });
   },
-  createGroup(initial){
-    promptBox('Новая группа', 'Название группы (например, 3СА24Н)', 'Создать', name => {
-      name = String(name||'').trim().toUpperCase();
-      if(!GROUP_NAME_RE.test(name)){ toast(GROUP_NAME_HINT); Authz.createGroup(name); return; }
+  createGroup(){
+    groupNameSheet('Новая группа', 'Создать', null, name => {
       run(async () => {
         const g = await db.from('groups').insert({ college_id:S.profile.college_id, name }).select().single();
         if(g.error) throw g.error;
@@ -1307,13 +1332,12 @@ const Authz = {
         await Authz.switchGroup(g.data.id);
         toast('Группа создана');
       });
-    }, false, initial);
+    });
   },
-  renameGroup(initial){
+  renameGroup(){
     const cur = S.group?.name || '';
-    promptBox('Переименовать группу', `Новое название (сейчас: ${cur})`, 'Сохранить', name => {
-      name = String(name||'').trim().toUpperCase();
-      if(!GROUP_NAME_RE.test(name)){ toast(GROUP_NAME_HINT); Authz.renameGroup(name); return; }
+    const m = /^([1-4])([А-ЯЁ]{2,4})(\d{2})Н$/.exec(cur);
+    groupNameSheet('Переименовать группу', 'Сохранить', m ? { c:m[1], s:m[2], y:m[3] } : null, name => {
       run(async () => {
         const r = await db.from('groups').update({ name }).eq('id', S.group.id);
         if(r.error) throw r.error;

@@ -248,6 +248,8 @@ details.faq .policy p{margin:0 0 10px}
 .hrow:last-child{border-bottom:0}
 .skel{border-radius:14px;background:var(--fill);min-height:70px;margin-top:12px;animation:pulse 1.4s ease infinite}
 @keyframes pulse{50%{opacity:.5}}
+.fadein{animation:fadein .35s ease}
+@keyframes fadein{from{opacity:0}}
 .timer{font-variant-numeric:tabular-nums;color:var(--sec);font-size:15px}
 
 /* ---------- celebrate (duty closed) ---------- */
@@ -1565,14 +1567,17 @@ function bindPeopleRows(){
 
 /* ---------------- requests view (bug #4) ---------------- */
 async function vRequests(){
-  shell(`<h1 class="stitle" style="margin-top:4px">Заявки</h1><div id="rqBody"></div>`, 'requests');
-  const body = $('#rqBody');
+  const staff = isStaff();
+  shell(`<h1 class="stitle" style="margin-top:4px">Заявки</h1><div id="rqBody">` +
+    (staff ? `<div class="eyebrow" style="margin:20px 0 4px">Ожидают решения</div>`
+           : `<div class="eyebrow" style="margin:28px 0 4px">Мои заявки</div>`) +
+    `<div id="rqList"></div></div>`, 'requests');
+  const list = document.getElementById('rqList');
+  const paint = h => { list.innerHTML = `<div class="fadein">${h}</div>`; };
   try{
-    let html = '';
-    if(isStaff()){
+    if(staff){
       const items = await Requests.pending(true);
-      html += `<div class="eyebrow" style="margin:20px 0 4px">Ожидают решения</div>`;
-      html += items.length ? items.map(r => `
+      paint(items.length ? items.map(r => `
         <div class="row" style="align-items:flex-start"><div class="grow">
           <b>${r.kind === 'add' ? 'Добавить' : 'Убрать'}: ${esc(r.kind === 'add' ? (r.new_name || '?') : (r.people?.name || '?'))}</b>
           <div class="sub">${esc(r.reason || 'без причины')} · ${esc(r.groups?.name || '')} · ${esc(fmt(r.created_at))}</div>
@@ -1580,27 +1585,26 @@ async function vRequests(){
             <button class="btn btn-q" style="min-height:44px;flex:1" data-dec="${r.id}|1">Одобрить</button>
             <button class="btn btn-danger-q" style="min-height:44px;flex:1" data-dec="${r.id}|0">Отклонить</button>
           </div></div></div>`).join('')
-        : `<p class="body2" style="margin-top:10px;color:var(--ter)">Заявок нет. Всё спокойно.</p>`;
-    }
-    if(isLeader() && !isStaff()){
+        : `<p class="body2" style="margin-top:10px;color:var(--ter)">Заявок нет. Всё спокойно.</p>`);
+    } else if(isLeader()){
       const mine = await Requests.mine();
-      html += `<div class="eyebrow" style="margin:28px 0 4px">Мои заявки</div>`;
-      html += mine.length ? `<div class="rows">` + mine.map(r => `
+      paint((mine.length ? `<div class="rows">` + mine.map(r => `
         <div class="row"><div class="grow">
           <b>${r.kind === 'add' ? 'Добавить: ' + esc(r.new_name || '?') : 'Убрать: ' + esc(r.people?.name || '?')}</b>
           <div class="sub">${esc(SW[r.status] || r.status)} · ${esc(fmt(r.created_at))}${r.reason ? ' · ' + esc(r.reason) : ''}</div>
         </div><span class="tag ${r.status==='pending'?'amber':r.status==='approved'?'green':'red'}">${esc(SW[r.status] || r.status)}</span></div>`).join('') + `</div>`
-        : `<p class="body2" style="margin-top:10px;color:var(--ter)">Вы ничего не отправляли.</p>`;
-      html += `<div style="margin-top:22px"><button class="btn btn-q" id="rqNew" style="width:100%">＋ Новая заявка</button></div>`;
+        : `<p class="body2" style="margin-top:10px;color:var(--ter)">Вы ничего не отправляли.</p>`) +
+        `<div style="margin-top:22px"><button class="btn btn-q" id="rqNew" style="width:100%">＋ Новая заявка</button></div>`);
+    } else {
+      paint('<p class="body2">Нет доступа.</p>');
     }
-    body.innerHTML = html || '<p class="body2">Нет доступа.</p>';
-    body.querySelectorAll('[data-dec]').forEach(b => b.onclick = () => {
+    list.querySelectorAll('[data-dec]').forEach(b => b.onclick = () => {
       const [id, ok] = b.dataset.dec.split('|');
       confirmBox(ok === '1' ? 'Одобрить заявку?' : 'Отклонить заявку?', 'Решение попадёт в журнал событий.', ok === '1' ? 'Одобрить' : 'Отклонить',
         () => Requests.decide(id, ok === '1'), ok !== '1');
     });
-    const nw = $('#rqNew'); if(nw) nw.onclick = () => Requests.compose();
-  }catch(e){ body.innerHTML = `<div class="notice">${esc(authErrorMessage(e))}</div>`; }
+    const nw = document.getElementById('rqNew'); if(nw) nw.onclick = () => Requests.compose();
+  }catch(e){ paint(`<div class="notice">${esc(authErrorMessage(e))}</div>`); }
 }
 
 /* ---------------- profile ---------------- */

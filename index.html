@@ -427,8 +427,9 @@ function authErrorMessage(e){
 }
 
 /* ---------------- UI primitives ---------------- */
-function sheet(html){
+function sheet(html, opts){
   closeSheet();
+  const lock = !!(opts && opts.lock); /* lock: нельзя закрыть тапом мимо или свайпом — только кнопкой */
   const w = document.createElement('div');
   w.className = 'scrim'; w.id = 'sheetWrap';
   w.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
@@ -438,7 +439,7 @@ function sheet(html){
      Swallow every click inside the sheet for the first 400ms. */
   w.addEventListener('click', e => {
     if(Date.now() - born < 400){ e.stopPropagation(); e.preventDefault(); return; }
-    if(e.target === w) closeSheet();
+    if(e.target === w && !lock) closeSheet();
   }, true);
   document.body.appendChild(w);
   document.body.style.overflow = 'hidden';
@@ -454,7 +455,7 @@ function sheet(html){
   }, {passive:true});
   sh.addEventListener('touchend', () => {
     sh.style.transition = ''; sh.style.transform = '';
-    if(dy > 90) closeSheet();
+    if(dy > 90 && !lock) closeSheet();
     sy = null; dy = 0;
   });
   return w;
@@ -1274,16 +1275,26 @@ const Authz = {
   },
   async createAccounts(){
     await run(async () => {
-      const d = await Authz.callAccounts({ action:'create' });
-      await Store.loadGroup(); render();
-      const acc = (d.accounts || []).map(a => `${a.name} — ${a.login} — ${a.password}`).join('\n');
-      sheet(`<h3>Логины и пароли</h3><p class="body2" style="margin-top:6px">Показано один раз. Сохраните прямо сейчас.</p>
-        <div class="rows" style="margin-top:14px;max-height:40vh;overflow:auto">${(d.accounts||[]).map(a =>
-          `<div class="row"><div class="grow"><b>${esc(a.name)}</b><div class="sub">${esc(a.login)} · ${esc(a.password)}</div></div></div>`).join('') || '<div class="row"><div class="grow body2">Новых нет: у всех уже есть аккаунты.</div></div>'}</div>
-        <div class="actions"><button class="btn btn-q" id="ccCopy">Скопировать</button><button class="btn btn-p" id="ccOk">Готово</button></div>`);
-      $('#ccCopy').onclick = async () => { try{ await navigator.clipboard.writeText(acc); toast('Скопировано'); }catch(_){ toast('Не скопировалось'); } };
-      $('#ccOk').onclick = () => { closeSheet(); };
+      sheet(`<h3>Создаём аккаунты…</h3><p class="body2" style="margin-top:8px">Заводим каждого по очереди — это может занять около минуты. Не закрывайте приложение.</p>
+        <div style="display:flex;justify-content:center;padding:30px 0"><span class="spin" style="width:26px;height:26px"></span></div>`, { lock:true });
+      let d;
+      try{ d = await Authz.callAccounts({ action:'create' }); }
+      catch(e){ closeSheet(); throw e; }
+      await Store.loadGroup();
+      const accs = d.accounts || [];
+      if(accs.length) S._lastPw = accs; /* пароли живут только в памяти — до выхода или перезагрузки */
+      render();
+      Authz.showPasswords(accs);
     });
+  },
+  showPasswords(accs){
+    const list = (accs || []).map(a => `${a.name} — ${a.login} — ${a.password}`).join('\n');
+    sheet(`<h3>Логины и пароли</h3><p class="body2" style="margin-top:6px">Хранятся только в памяти — до перезагрузки страницы. Сохраните прямо сейчас.</p>
+      <div class="rows" style="margin-top:14px;max-height:40vh;overflow:auto">${(accs||[]).map(a =>
+        `<div class="row"><div class="grow"><b>${esc(a.name)}</b><div class="sub">${esc(a.login)} · ${esc(a.password)}</div></div></div>`).join('') || '<div class="row"><div class="grow body2">Новых нет: у всех уже есть аккаунты.</div></div>'}</div>
+      <div class="actions"><button class="btn btn-q" id="ccCopy">Скопировать</button><button class="btn btn-p" id="ccOk">Готово</button></div>`, { lock:true });
+    const cp = $('#ccCopy'); if(cp) cp.onclick = async () => { try{ await navigator.clipboard.writeText(list); toast('Скопировано'); }catch(_){ toast('Не скопировалось'); } };
+    const ok = $('#ccOk'); if(ok) ok.onclick = () => { closeSheet(); };
   },
   async resetPassword(personId){
     await run(async () => {
@@ -1791,6 +1802,7 @@ async function vAdmin(){
     sec('access', 'Доступ', `
     <div class="rows">
       <button class="row" id="mkAcc"><div class="grow"><b>Создать аккаунты</b><div class="sub">Для людей без аккаунта, пароли — один раз</div></div><span class="chev">›</span></button>
+      ${(S._lastPw && S._lastPw.length) ? `<button class="row" id="pwAgain"><div class="grow"><b>Показать последние пароли</b><div class="sub">${S._lastPw.length} ${peopleWord(S._lastPw.length)} · хранятся до перезагрузки</div></div><span class="chev">›</span></button>` : ''}
       ${S.people.filter(p => p.user_id).map(p => {
         const r = mrole.get(p.user_id);
         const isL = r === 'leader';
@@ -1830,6 +1842,7 @@ async function vAdmin(){
       w.querySelector('#dgYes').onclick = () => { if(w.querySelector('#dgIn').value.trim() !== gname){ toast('Название не совпало'); return; } closeSheet(); Authz.deleteGroup(gdelId); };
     });
     $('#mkAcc').onclick = () => Authz.createAccounts();
+    const pwa = $('#pwAgain'); if(pwa) pwa.onclick = () => Authz.showPasswords(S._lastPw);
     body.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { const [u, m] = b.dataset.role.split('|'); Authz.setRole(u, m === '1', b); });
     body.querySelectorAll('[data-rst]').forEach(b => b.onclick = () => confirmBox('Сбросить пароль?', 'Старый пароль перестанет работать, новый покажем один раз.', 'Сбросить', () => Authz.resetPassword(b.dataset.rst), true));
     body.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => Authz.restoreVersion(b.dataset.ver));
@@ -1937,7 +1950,7 @@ if(!window.supabase){
     <p class="body2">Не загрузилась библиотека Supabase. Проверьте интернет и обновите страницу.</p></div></div>`;
 }else{
   db.auth.onAuthStateChange((ev, session) => {
-    if(ev === 'SIGNED_OUT'){ Object.assign(S, { user:null, profile:null, group:null, view:'home' }); Auth.login(); }
+    if(ev === 'SIGNED_OUT'){ Object.assign(S, { user:null, profile:null, group:null, view:'home', _lastPw:null }); Auth.login(); }
     else if(ev === 'SIGNED_IN' && session && !S.group){ setTimeout(() => Store.boot().catch(fail), 0); }
   });
   Store.boot();

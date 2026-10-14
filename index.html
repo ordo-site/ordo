@@ -711,7 +711,7 @@ const Auth = {
   login(){
     root.innerHTML = `
     <div class="auth">
-      <div class="rise brand" style="animation-delay:.02s">${MARK}<span><b>Ordo</b></span></div>
+      <div class="rise brand" id="brandAuth" style="animation-delay:.02s;cursor:pointer">${MARK}<span><b>Ordo</b></span></div>
       <h1 class="rise" style="animation-delay:.08s">Дежурство<br>без лишнего</h1>
       <p class="sub rise" style="animation-delay:.14s">Войдите, чтобы открыть свою группу.</p>
       <form id="loginForm" class="rise" style="animation-delay:.2s" novalidate>
@@ -731,6 +731,7 @@ const Auth = {
     </div>`;
     Theme.apply(document.body.classList.contains('light') ? 'light' : 'dark');
     $('#loginTheme').onclick = Theme.toggle;
+    $('#brandAuth').addEventListener('click', easterTap);
     $('#loginDocs').onclick = e => { e.preventDefault(); Docs.open(); };
     const pw = $('#pw');
     $('#pwEye').onclick = e => {

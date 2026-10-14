@@ -129,6 +129,8 @@ a{color:var(--accent);text-decoration:none}
 .gmenu{position:fixed;z-index:99990;min-width:210px;max-width:280px;background:var(--bg2);border:1px solid var(--hair);border-radius:16px;box-shadow:var(--shadow);padding:6px;animation:up .25s var(--spring)}
 .gmenu button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:0;color:var(--text);font:inherit;font-size:15px;font-weight:600;padding:11px 12px;border-radius:10px;cursor:pointer}
 .gmenu button:active{background:var(--fill)}
+.gmenu.closing{animation:gclose .18s ease-in forwards}
+@keyframes gclose{to{opacity:0;transform:translateY(-8px) scale(.97)}}
 .brand .mark{width:30px;height:30px}
 .mk-a{stroke:var(--text)} .mk-b{fill:var(--accent)}
 .brand b{font-size:19px;font-weight:700;letter-spacing:-.01em}
@@ -1540,9 +1542,15 @@ function shell(content, active){
   if(isStaff()) refreshReqBadge();
 }
 /* переключатель групп в шапке */
+function closeGroupMenu(){
+  const m = document.getElementById('gMenu');
+  if(!m || m._closing) return;
+  m._closing = true;
+  m.classList.add('closing');
+  setTimeout(() => m.remove(), 180);
+}
 function toggleGroupMenu(){
-  const old = document.getElementById('gMenu');
-  if(old){ old.remove(); return; }
+  if(document.getElementById('gMenu')){ closeGroupMenu(); return; }
   const anchor = document.getElementById('gSel');
   if(!anchor || !(S.groups || []).length) return;
   const m = document.createElement('div');
@@ -1553,9 +1561,10 @@ function toggleGroupMenu(){
   const r = anchor.getBoundingClientRect();
   m.style.top = (r.bottom + 8) + 'px';
   m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 228)) + 'px';
-  m.querySelectorAll('[data-gsm]').forEach(b => b.onclick = () => { m.remove(); run(() => Authz.switchGroup(b.dataset.gsm)); });
+  m.querySelectorAll('[data-gsm]').forEach(b => b.onclick = () => { closeGroupMenu(); run(() => Authz.switchGroup(b.dataset.gsm)); });
   setTimeout(() => document.addEventListener('click', function h(e){
-    if(m.isConnected && !m.contains(e.target)){ m.remove(); document.removeEventListener('click', h); }
+    const mm = document.getElementById('gMenu');
+    if(mm && !mm._closing && !mm.contains(e.target)){ closeGroupMenu(); document.removeEventListener('click', h); }
   }), 0);
 }
 let _rbT = 0;

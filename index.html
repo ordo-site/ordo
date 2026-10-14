@@ -1741,8 +1741,8 @@ async function vAdmin(){
     body.innerHTML =
     sec('groups', 'Группы', `
     <div class="rows">
-      ${S.groups.map(g => `<button class="row" data-gsw="${g.id}"><div class="grow"><b>${esc(g.name)}</b>${g.id === gid ? ' <span class="tag blue">текущая</span>' : ''}</div><span class="chev">›</span></button>`).join('')}
       <button class="row" id="gNew"><div class="grow" style="color:var(--accent)">＋ Новая группа</div></button>
+      ${S.groups.map(g => `<button class="row" data-gsw="${g.id}"><div class="grow"><b>${esc(g.name)}</b>${g.id === gid ? ' <span class="tag blue">текущая</span>' : ''}</div><span class="chev">›</span></button>`).join('')}
       <button class="row" id="gRename"><div class="grow">Переименовать группу</div><span class="chev">›</span></button>
     </div>`) +
     sec('access', 'Доступ', `

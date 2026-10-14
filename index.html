@@ -446,6 +446,7 @@ function authErrorMessage(e){
   for(const k in MAP) if(m.includes(k)) return MAP[k];
   if(/invalid login|invalid.*credentials|invalid.*password/i.test(m)) return 'Неверный логин или пароль.';
   if(/user.*not.*found|no.*user/i.test(m)) return 'Такого логина нет. Проверьте написание.';
+  if(/permission denied/i.test(m)) return 'Нет прав на это действие.';
   return m || 'Не получилось. Попробуйте ещё раз.';
 }
 

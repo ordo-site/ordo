@@ -1317,6 +1317,17 @@ const Authz = {
       });
     });
   },
+  async deleteGroup(id){
+    await run(async () => {
+      await Authz.callAccounts({ action:'delete_group', group_id:id });
+      S.groups = S.groups.filter(g => g.id !== id);
+      toast('Группа удалена');
+      if(S.group?.id === id){
+        if(S.groups.length) await Authz.switchGroup(S.groups[0].id);
+        else { S.group = null; render(); }
+      } else render();
+    });
+  },
   async restoreVersion(id){
     confirmBox('Откатить состояние?', 'Очередь и история вернутся к выбранной версии. Текущее состояние тоже сохранится.', 'Откатить', () =>
       run(async () => {
@@ -1742,7 +1753,7 @@ async function vAdmin(){
     sec('groups', 'Группы', `
     <div class="rows">
       <button class="row" id="gNew"><div class="grow" style="color:var(--accent)">＋ Новая группа</div></button>
-      ${S.groups.map(g => `<button class="row" data-gsw="${g.id}"><div class="grow"><b>${esc(g.name)}</b>${g.id === gid ? ' <span class="tag blue">текущая</span>' : ''}</div><span class="chev">›</span></button>`).join('')}
+      ${S.groups.map(g => `<div class="row" data-gsw="${g.id}"><div class="grow"><b>${esc(g.name)}</b>${g.id === gid ? ' <span class="tag blue">текущая</span>' : ''}</div>${isAdmin() ? `<button class="linkbtn danger" data-gdel="${g.id}" data-gname="${esc(g.name)}">Удалить</button>` : '<span class="chev">›</span>'}</div>`).join('')}
       <button class="row" id="gRename"><div class="grow">Переименовать группу</div><span class="chev">›</span></button>
     </div>`) +
     sec('access', 'Доступ', `
@@ -1779,6 +1790,7 @@ async function vAdmin(){
     $('#gNew').onclick = () => Authz.createGroup();
     $('#gRename').onclick = () => Authz.renameGroup();
     body.querySelectorAll('[data-gsw]').forEach(b => b.onclick = () => Authz.switchGroup(b.dataset.gsw));
+    body.querySelectorAll('[data-gdel]').forEach(b => b.onclick = e => { e.stopPropagation(); confirmBox('Удалить группу?', `«${b.dataset.gname}»: люди, очередь, журнал и идеи исчезнут без следа. Аккаунты людей сохранятся.`, 'Удалить', () => Authz.deleteGroup(b.dataset.gdel), true); });
     $('#mkAcc').onclick = () => Authz.createAccounts();
     body.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { const [u, m] = b.dataset.role.split('|'); Authz.setRole(u, m === '1', b); });
     body.querySelectorAll('[data-rst]').forEach(b => b.onclick = () => confirmBox('Сбросить пароль?', 'Старый пароль перестанет работать, новый покажем один раз.', 'Сбросить', () => Authz.resetPassword(b.dataset.rst), true));

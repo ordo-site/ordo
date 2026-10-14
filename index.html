@@ -187,6 +187,10 @@ button.row:active{background:var(--fill)}
 .qrow:last-child{border-bottom:0}
 .qnum{font-size:15px;font-weight:600;color:var(--ter);width:30px;font-variant-numeric:tabular-nums}
 .qrow.me .qnum{color:var(--accent)}
+.fchips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}
+.fchips::-webkit-scrollbar{display:none}
+.fchip{flex:none;font-size:13px;font-weight:600;padding:7px 14px;border-radius:999px;border:1px solid var(--hair);color:var(--sec);background:transparent;cursor:pointer;transition:all .2s}
+.fchip.on{background:var(--accent);border-color:var(--accent);color:#fff}
 .qgrip{flex:none;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:var(--ter);font-size:15px;letter-spacing:3px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
 .qgrip:active{cursor:grabbing;color:var(--sec)}
 .s-ghost{opacity:.35}
@@ -1902,29 +1906,47 @@ async function vAdmin(){
     renderAuditFeed($('#adAudit'));
   }catch(e){ body.innerHTML = `<div class="notice">${esc(authErrorMessage(e))}</div>`; }
 }
+const AUDIT_CATS = {
+  all:   { label:'Все',      test:() => true },
+  ppl:   { label:'Люди',     test:a => /^(person_|removal_|add_)/.test(a) },
+  acc:   { label:'Доступ',   test:a => /^(password_reset|accounts_created|leader_)/.test(a) },
+  sys:   { label:'Система',  test:a => /^(state_restored|group_paused|group_resumed|duty_outside_schedule|history_deleted|group_created|group_reset)$/.test(a) },
+};
 async function renderAuditFeed(el){
   if(!el) return;
   try{
     const [a, pr] = await Promise.all([
       db.from('audit_log').select('id,actor_id,action,payload,created_at').eq('group_id', S.group.id)
         .not('action', 'in', '(duty_start_srv,duty_started,duty_finished,queue_reordered,queue_changed,group_join_code_created,person_claimed)')
-        .order('id', { ascending:false }).limit(30),
+        .order('id', { ascending:false }).limit(60),
       db.from('profiles').select('id,display_name').eq('college_id', S.profile.college_id)
     ]);
     if(a.error) throw a.error;
-    const nm = new Map((pr.data || []).map(p => [p.id, p.display_name]));
-    const L = { person_created:'Добавлен участник', person_removed:'Участник убран', removal_approved:'Удаление одобрено', removal_rejected:'Удаление отклонено', removal_requested:'Запрос на удаление', add_requested:'Запрос на добавление', add_approved:'Добавление одобрено', add_rejected:'Добавление отклонено', password_reset:'Сброс пароля', accounts_created:'Созданы аккаунты', leader_granted:'Выдан староста', leader_revoked:'Снят староста', state_restored:'Откат состояния', group_paused:'Назначения приостановлены', group_resumed:'Назначения возобновлены', duty_outside_schedule:'Назначение вне расписания', history_deleted:'Удалены записи истории', group_created:'Создана группа', group_reset:'Группа сброшена' };
-    let html = '', last = '';
-    const dl = d => { const t = new Date(), y = new Date(); y.setDate(t.getDate() - 1);
-      const f = x => x.toDateString();
-      return f(d) === f(t) ? 'Сегодня' : f(d) === f(y) ? 'Вчера' : d.toLocaleDateString('ru-RU', { day:'numeric', month:'long' }); };
-    (a.data || []).forEach(x => {
-      const d = new Date(x.created_at), lab = dl(d);
-      if(lab !== last){ html += `<div class="hday">${esc(lab)}</div>`; last = lab; }
-      html += `<div class="hrow"><div class="grow"><b>${esc(L[x.action] || x.action)}</b><div class="sub" style="font-size:13px;color:var(--sec)">${esc(nm.get(x.actor_id) || 'система')}</div></div><span class="tiny">${esc(d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }))}</span></div>`;
-    });
-    el.innerHTML = html || '<p class="body2">Событий пока нет.</p>';
+    S._auditRows = a.data || [];
+    S._auditNames = new Map((pr.data || []).map(p => [p.id, p.display_name]));
+    paintAuditFeed(el);
   }catch(e){ el.innerHTML = `<div class="notice">${esc(authErrorMessage(e))}</div>`; }
+}
+function paintAuditFeed(el){
+  el = el || document.getElementById('adAudit');
+  if(!el) return;
+  const rows = S._auditRows || [], nm = S._auditNames || new Map();
+  const f = S.auditFilter || 'all';
+  const cat = AUDIT_CATS[f] || AUDIT_CATS.all;
+  const L = { person_created:'Добавлен участник', person_removed:'Участник убран', removal_approved:'Удаление одобрено', removal_rejected:'Удаление отклонено', removal_requested:'Запрос на удаление', add_requested:'Запрос на добавление', add_approved:'Добавление одобрено', add_rejected:'Добавление отклонено', password_reset:'Сброс пароля', accounts_created:'Созданы аккаунты', leader_granted:'Выдан староста', leader_revoked:'Снят староста', state_restored:'Откат состояния', group_paused:'Назначения приостановлены', group_resumed:'Назначения возобновлены', duty_outside_schedule:'Назначение вне расписания', history_deleted:'Удалены записи истории', group_created:'Создана группа', group_reset:'Группа сброшена' };
+  const chips = Object.entries(AUDIT_CATS).map(([k, c]) =>
+    `<button class="fchip${f === k ? ' on' : ''}" data-af="${k}">${c.label}</button>`).join('');
+  let html = '', last = '';
+  const dl = d => { const t = new Date(), y = new Date(); y.setDate(t.getDate() - 1);
+    const f = x => x.toDateString();
+    return f(d) === f(t) ? 'Сегодня' : f(d) === f(y) ? 'Вчера' : d.toLocaleDateString('ru-RU', { day:'numeric', month:'long' }); };
+  rows.filter(x => cat.test(x.action)).forEach(x => {
+    const d = new Date(x.created_at), lab = dl(d);
+    if(lab !== last){ html += `<div class="hday">${esc(lab)}</div>`; last = lab; }
+    html += `<div class="hrow"><div class="grow"><b>${esc(L[x.action] || x.action)}</b><div class="sub" style="font-size:13px;color:var(--sec)">${esc(nm.get(x.actor_id) || 'система')}</div></div><span class="tiny">${esc(d.toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' }))}</span></div>`;
+  });
+  el.innerHTML = `<div class="fchips">${chips}</div>` + (html || '<p class="body2">Событий пока нет.</p>');
+  el.querySelectorAll('[data-af]').forEach(b => b.onclick = () => { S.auditFilter = b.dataset.af; paintAuditFeed(); });
 }
 
 /* ---------------- first run / no group ---------------- */

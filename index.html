@@ -1406,8 +1406,9 @@ const Authz = {
     const m = /^([1-4])([А-ЯЁ]{2,4})(\d{2})Н$/.exec(cur);
     groupNameSheet('Переименовать группу', 'Сохранить', m ? { c:m[1], s:m[2], y:m[3] } : null, name => {
       run(async () => {
-        const r = await db.from('groups').update({ name }).eq('id', S.group.id);
+        const r = await db.from('groups').update({ name }).eq('id', S.group.id).select('id');
         if(r.error) throw r.error;
+        if(!r.data || !r.data.length) throw new Error('Нет прав на это действие'); /* RLS отклонил: 0 строк */
         S.group.name = name;
         const bs = document.querySelector('.brand small'); if(bs) bs.textContent = name;
         render(); toast('Группа переименована');

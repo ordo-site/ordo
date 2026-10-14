@@ -585,6 +585,13 @@ function myPosition(){
 }
 
 /* ---------------- store ---------------- */
+/* сортировка групп: цифра курса, затем название по алфавиту (1АА26Н < 1ББ26Н < 2СА25Н) */
+function groupSort(a, b){
+  const pa = /^(\d+)(.*)$/.exec(a.name || ''), pb = /^(\d+)(.*)$/.exec(b.name || '');
+  const na = pa ? +pa[1] : 99, nb = pb ? +pb[1] : 99;
+  if(na !== nb) return na - nb;
+  return String(pa ? pa[2] : a.name || '').localeCompare(pb ? pb[2] : b.name || '', 'ru');
+}
 const Store = {
   async boot(){
     _userNav = false;
@@ -631,7 +638,7 @@ const Store = {
       const g = await db.from('groups').select('*').eq('college_id', profile.college_id).order('created_at');
       if(g.error) throw g.error;
       if(!g.data?.length){ renderNoGroup(); return; }
-      S.groups = g.data;
+      S.groups = (g.data || []).sort(groupSort);
       const saved = (()=>{ try{ return localStorage.getItem('dutysite-active-group'); }catch(_){ return null; } })();
       S.group = g.data.find(x => x.id === saved) || g.data[0];
       const m = await db.from('group_members').select('group_id,role').eq('group_id', S.group.id).eq('user_id', S.user.id).maybeSingle();

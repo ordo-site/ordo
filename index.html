@@ -187,6 +187,8 @@ button.row:active{background:var(--fill)}
 .qrow:last-child{border-bottom:0}
 .qnum{font-size:15px;font-weight:600;color:var(--ter);width:30px;font-variant-numeric:tabular-nums}
 .qrow.me .qnum{color:var(--accent)}
+#verBar{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:99995;display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--hair);border-radius:999px;padding:8px 8px 8px 16px;font-size:13px;font-weight:600;color:var(--text);box-shadow:var(--shadow);animation:up .35s var(--spring)}
+#verBar button{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer}
 .fchips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;scrollbar-width:none}
 .fchips::-webkit-scrollbar{display:none}
 .fchip{flex:none;font-size:13px;font-weight:600;padding:7px 14px;border-radius:999px;border:1px solid var(--hair);color:var(--sec);background:transparent;cursor:pointer;transition:all .2s}
@@ -2026,7 +2028,31 @@ if(!window.supabase){
   });
   Store.boot();
   initPTR();
+  initVersionWatch();
 }
+/* ---------- проверка новой версии сайта ---------- */
+async function checkVersion(baseline){
+  try{
+    const r = await fetch(location.pathname + '?_v=' + Date.now(), { method:'HEAD', cache:'no-store' });
+    const etag = r.headers.get('etag');
+    if(!etag) return;
+    if(baseline || !S._etag){ S._etag = etag; return; }
+    if(S._etag !== etag && !document.getElementById('verBar')){
+      const b = document.createElement('div');
+      b.id = 'verBar';
+      b.innerHTML = 'Вышла новая версия <button id="verGo">Обновить</button>';
+      document.body.appendChild(b);
+      document.getElementById('verGo').onclick = () =>
+        { location.href = location.pathname + '?_r=' + Date.now(); };
+    }
+  }catch(_){ /* офлайн — молча пропускаем */ }
+}
+function initVersionWatch(){
+  checkVersion(true);
+  setInterval(() => checkVersion(false), 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if(!document.hidden) checkVersion(false); });
+}
+
 /* ---------------- pull-to-refresh ---------------- */
 function initPTR(){
   const el = document.createElement('div');
@@ -2060,7 +2086,7 @@ function initPTR(){
     if(!doIt){ el.style.transform = ''; return; }
     el.style.transform = 'translate(-50%,0)';
     const v = S.view;
-    run(() => Store.loadUser()).then(() => { S.view = v; render(); toast('Обновлено'); el.style.transform = ''; });
+    run(() => Store.loadUser()).then(() => { S.view = v; render(); toast('Обновлено'); el.style.transform = ''; checkVersion(false); });
   });
 }
 

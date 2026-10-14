@@ -1305,6 +1305,7 @@ const Authz = {
         const r = await db.from('groups').update({ name }).eq('id', S.group.id);
         if(r.error) throw r.error;
         S.group.name = name;
+        const bs = document.querySelector('.brand small'); if(bs) bs.textContent = name;
         render(); toast('Группа переименована');
       });
     });
@@ -1578,11 +1579,15 @@ function bindPeopleRows(){
 /* ---------------- requests view (bug #4) ---------------- */
 async function vRequests(){
   const staff = isStaff();
-  shell(`<h1 class="stitle" style="margin-top:4px">Заявки</h1><div id="rqBody">` +
-    (staff ? `<div class="eyebrow" style="margin:20px 0 4px">Ожидают решения</div>`
-           : `<div class="eyebrow" style="margin:28px 0 4px">Мои заявки</div>`) +
-    `<div id="rqList"></div></div>`, 'requests');
-  const list = document.getElementById('rqList');
+  let list = document.getElementById('rqList');
+  if(!list){
+    /* first entry: build chrome; re-renders only refill the list (no scroll jump) */
+    shell(`<h1 class="stitle" style="margin-top:4px">Заявки</h1><div id="rqBody">` +
+      (staff ? `<div class="eyebrow" style="margin:20px 0 4px">Ожидают решения</div>`
+             : `<div class="eyebrow" style="margin:28px 0 4px">Мои заявки</div>`) +
+      `<div id="rqList"></div></div>`, 'requests');
+    list = document.getElementById('rqList');
+  }
   const paint = h => { list.innerHTML = `<div class="vin">${h}</div>`; };
   try{
     if(staff){
@@ -1615,6 +1620,7 @@ async function vRequests(){
     });
     const nw = document.getElementById('rqNew'); if(nw) nw.onclick = () => Requests.compose();
   }catch(e){ paint(`<div class="notice">${esc(authErrorMessage(e))}</div>`); }
+  if(isStaff()) refreshReqBadge();
 }
 
 /* ---------------- profile ---------------- */
@@ -1704,10 +1710,13 @@ function adSecOpen(key){ /* programmatically open a collapsed admin section */
 }
 async function vAdmin(){
   if(!isStaff()){ S.view = 'profile'; render(); return; }
-  shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Администрирование</h1>
-    <button class="linkbtn" id="adBack">Назад</button></div>
-    <div id="adBody"><div class="skel"></div><div class="skel"></div></div>`, 'profile');
-  $('#adBack').onclick = () => { S.view = 'profile'; render(); };
+  if(!document.getElementById('adBody')){
+    /* first entry: build chrome; re-renders only refill the body (no scroll jump) */
+    shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Администрирование</h1>
+      <button class="linkbtn" id="adBack">Назад</button></div>
+      <div id="adBody"><div class="skel"></div><div class="skel"></div></div>`, 'profile');
+    $('#adBack').onclick = () => { S.view = 'profile'; render(); };
+  }
   const body = $('#adBody');
   try{
     const gid = S.group.id;

@@ -399,8 +399,7 @@ const Easter = {
   },
   cycle(){
     this.apply(this.mode==='off' ? 'glam' : this.mode==='glam' ? 'hacker' : 'off');
-    if(this.mode==='glam') toast('Гламурный режим');
-    else if(this.mode==='hacker') toast('Режим хакера активирован');
+    toast(this.mode==='glam' ? 'Гламурный режим' : this.mode==='hacker' ? 'Режим хакера активирован' : 'Обычная тема');
   },
   init(){ let m='off'; try{ m = localStorage.getItem('ordo-easter') || 'off'; }catch(_){} this.apply(m); }
 };
@@ -1141,6 +1140,13 @@ const Requests = {
     if(r.error) throw r.error;
     return r.data || [];
   },
+  async withdraw(id){
+    await run(async () => {
+      const r = await db.from('removal_requests').delete().eq('id', id).eq('requested_by', S.user.id);
+      if(r.error) throw r.error;
+      render(); toast('Заявка убрана');
+    });
+  },
   async decide(id, ok){
     await run(async () => {
       const r = await db.rpc('decide_person_removal', { p_request_id:id, p_approve:ok });
@@ -1778,7 +1784,7 @@ async function vRequests(){
         <div class="row"><div class="grow">
           <b>${r.kind === 'add' ? 'Добавить: ' + esc(r.new_name || '?') : 'Убрать: ' + esc(r.people?.name || '?')}</b>
           <div class="sub">${esc(SW[r.status] || r.status)} · ${esc(fmt(r.created_at))}${r.reason ? ' · ' + esc(r.reason) : ''}</div>
-        </div><span class="tag ${r.status==='pending'?'amber':r.status==='approved'?'green':'red'}">${esc(SW[r.status] || r.status)}</span></div>`).join('') + `</div>`
+        </div><span class="tag ${r.status==='pending'?'amber':r.status==='approved'?'green':'red'}">${esc(SW[r.status] || r.status)}</span><button class="linkbtn danger" style="font-size:16px;padding:6px" data-rqdel="${r.id}" aria-label="Убрать заявку">×</button></div>`).join('') + `</div>`
         : `<p class="body2" style="margin-top:10px;color:var(--ter)">Вы ничего не отправляли.</p>`) +
         `<div style="margin-top:22px"><button class="btn btn-q" id="rqNew" style="width:100%">＋ Новая заявка</button></div>`);
     } else {
@@ -1790,6 +1796,8 @@ async function vRequests(){
         () => Requests.decide(id, ok === '1'), ok !== '1');
     });
     const nw = document.getElementById('rqNew'); if(nw) nw.onclick = () => Requests.compose();
+    list.querySelectorAll('[data-rqdel]').forEach(b => b.onclick = () =>
+      confirmBox('Убрать заявку?', 'Она исчезнет из вашего списка.', 'Убрать', () => Requests.withdraw(b.dataset.rqdel)));
   }catch(e){ paint(`<div class="notice">${esc(authErrorMessage(e))}</div>`); }
   if(isStaff()) refreshReqBadge();
 }

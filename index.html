@@ -346,6 +346,7 @@ function celebrate(){
 function fail(e){ console.error(e); toast(authErrorMessage(e)); }
 
 const S = { user:null, profile:null, group:null, groups:[], membership:null, people:[], state:{}, stateVer:null, view:'home', orderMode:false, fromCache:false, busy:false };
+let _userNav = false; /* true once the user picks a tab during boot: boot must not reset view to home */
 
 /* ---------------- theme ---------------- */
 const Theme = {
@@ -535,6 +536,7 @@ function myPosition(){
 /* ---------------- store ---------------- */
 const Store = {
   async boot(){
+    _userNav = false;
     try{
       const { data:{ session } } = await db.auth.getSession();
       if(!session){ Auth.login(); return; }
@@ -584,7 +586,7 @@ const Store = {
       const m = await db.from('group_members').select('group_id,role').eq('group_id', S.group.id).eq('user_id', S.user.id).maybeSingle();
       if(m.error) throw m.error;
       S.membership = m.data || { group_id:S.group.id, role:'leader' };
-      await Store.loadGroup(); Store.subscribe(); S.view = 'home'; renderAfterBoot(); return;
+      await Store.loadGroup(); Store.subscribe(); if(!_userNav) S.view = 'home'; renderAfterBoot(); return;
     }
     const ms = await db.from('group_members').select('group_id,role').eq('user_id', S.user.id);
     if(ms.error) throw ms.error;
@@ -593,7 +595,7 @@ const Store = {
     const g = await db.from('groups').select('*').eq('id', S.membership.group_id).single();
     if(g.error) throw g.error;
     S.group = g.data;
-    await Store.loadGroup(); Store.subscribe(); S.view = 'home'; renderAfterBoot();
+    await Store.loadGroup(); Store.subscribe(); if(!_userNav) S.view = 'home'; renderAfterBoot();
   },
   async loadGroup(){
     const gid = S.group.id;
@@ -1430,7 +1432,7 @@ function shell(content, active){
   $('#themeBtn').onclick = Theme.toggle;
   $('#brandHome').onclick = () => { S.view = 'home'; render(); };
   $('#brandHome').addEventListener('click', easterTap);
-  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.view = b.dataset.tab; S.orderMode = false; render(); window.scrollTo(0,0); });
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.view = b.dataset.tab; S.orderMode = false; _userNav = true; render(); window.scrollTo(0,0); });
   if(isStaff()) refreshReqBadge();
 }
 let _rbT = 0;

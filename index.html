@@ -1755,14 +1755,14 @@ async function vAdmin(){
       }).join('')}
     </div>`) +
     sec('ideas', `Идеи <span class="tag blue" id="ideaBadge" style="display:none"></span>`, `
-    <div id="adIdeas"><div class="skel"></div></div>`) +
+    <div id="adIdeas"></div>`) +
     sec('queue', 'Состояние очереди', `
     <div class="rows">
       <button class="row" id="adPause"><div class="grow"><b>${paused ? 'Возобновить назначения' : 'Приостановить назначения'}</b></div><span class="chev">›</span></button>
       ${(vers.data || []).map(v => `<div class="row"><div class="grow">${esc(fmt(v.saved_at))}</div><button class="linkbtn" data-ver="${v.id}">Вернуть</button></div>`).join('') || '<div class="row"><div class="grow body2">Версий пока нет</div></div>'}
     </div>`) +
     sec('events', 'События', `
-    <div id="adAudit"><div class="skel"></div></div>`) +
+    <div id="adAudit"></div>`) +
     sec('data', 'Данные', `
     <div class="rows">
       <button class="row" id="adExp"><div class="grow">Экспорт в Excel</div><span class="chev">›</span></button>

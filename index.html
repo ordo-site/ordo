@@ -121,6 +121,14 @@ a{color:var(--accent);text-decoration:none}
 .topbar-in{max-width:620px;margin:0 auto;padding:calc(10px + env(safe-area-inset-top)) 20px 10px;display:flex;align-items:center;justify-content:space-between}
 .brand{display:flex;align-items:center;gap:10px}
 #brandHome{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.bhome{display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;color:inherit;font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.gsel{display:flex;align-items:center;gap:5px;background:var(--fill);border:0;border-radius:999px;padding:7px 12px;color:var(--sec);font:inherit;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.gsel small{font-size:12.5px;font-weight:600}
+.gchev{font-size:9px;color:var(--ter)}
+.gsingle{font-size:12px;font-weight:500;color:var(--sec)}
+.gmenu{position:fixed;z-index:99990;min-width:210px;max-width:280px;background:var(--bg2);border:1px solid var(--hair);border-radius:16px;box-shadow:var(--shadow);padding:6px;animation:up .25s var(--spring)}
+.gmenu button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:0;color:var(--text);font:inherit;font-size:15px;font-weight:600;padding:11px 12px;border-radius:10px;cursor:pointer}
+.gmenu button:active{background:var(--fill)}
 .brand .mark{width:30px;height:30px}
 .mk-a{stroke:var(--text)} .mk-b{fill:var(--accent)}
 .brand b{font-size:19px;font-weight:700;letter-spacing:-.01em}
@@ -1500,7 +1508,10 @@ function shell(content, active){
   const short = (S.profile?.display_name || S.user?.email || '').split('@')[0];
   root.innerHTML = `
   <div class="topbar"><div class="topbar-in">
-    <button class="brand" id="brandHome" aria-label="На главную">${MARK}<span><b>Ordo</b><small>${esc(S.group?.name || '')}</small></span></button>
+    ${(() => { const canSwitch = isStaff() && S.groups && S.groups.length > 1;
+      return canSwitch
+        ? `<div class="brand"><button id="brandHome" class="bhome" aria-label="На главную">${MARK}<b>Ordo</b></button><button class="gsel" id="gSel" aria-label="Сменить группу"><small>${esc(S.group?.name || '')}</small><span class="gchev">▾</span></button></div>`
+        : `<button class="brand" id="brandHome" aria-label="На главную">${MARK}<span><b>Ordo</b><small>${esc(S.group?.name || '')}</small></span></button>`; })()}
     <div class="top-actions">
       <button class="iconbtn themebtn" id="themeBtn" aria-label="Переключить тему"></button>
     </div>
@@ -1514,8 +1525,29 @@ function shell(content, active){
   $('#themeBtn').onclick = Theme.toggle;
   $('#brandHome').onclick = () => { S.view = 'home'; render(); };
   $('#brandHome').addEventListener('click', easterTap);
+  const gs = $('#gSel');
+  if(gs) gs.onclick = e => { e.stopPropagation(); toggleGroupMenu(); };
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.view = b.dataset.tab; S.orderMode = false; _userNav = true; render(); window.scrollTo(0,0); });
   if(isStaff()) refreshReqBadge();
+}
+/* переключатель групп в шапке */
+function toggleGroupMenu(){
+  const old = document.getElementById('gMenu');
+  if(old){ old.remove(); return; }
+  const anchor = document.getElementById('gSel');
+  if(!anchor || !(S.groups || []).length) return;
+  const m = document.createElement('div');
+  m.id = 'gMenu'; m.className = 'gmenu';
+  m.innerHTML = S.groups.map(g =>
+    `<button data-gsm="${esc(g.id)}"><span>${esc(g.name)}</span>${g.id === S.group?.id ? '<span class="tag blue">текущая</span>' : ''}</button>`).join('');
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  m.style.top = (r.bottom + 8) + 'px';
+  m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 228)) + 'px';
+  m.querySelectorAll('[data-gsm]').forEach(b => b.onclick = () => { m.remove(); run(() => Authz.switchGroup(b.dataset.gsm)); });
+  setTimeout(() => document.addEventListener('click', function h(e){
+    if(m.isConnected && !m.contains(e.target)){ m.remove(); document.removeEventListener('click', h); }
+  }), 0);
 }
 let _rbT = 0;
 async function refreshReqBadge(){

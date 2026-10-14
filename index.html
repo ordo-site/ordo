@@ -1606,7 +1606,7 @@ function vHome(){
     }
   }
   const nextLine = next.length
-    ? `<button class="linkbtn" id="goQueue" style="margin-top:26px;font-size:16px">Дальше — <b>${next.map(p => `<span style="white-space:nowrap">${esc(p.name)}</span>`).join(' + ')}</b> →</button>` : '';
+    ? `<button class="linkbtn" id="goQueue" style="margin-top:26px;font-size:16px;text-wrap:balance">Далее: <b>${next.map(p => `<span style="white-space:nowrap">${esc(p.name)}</span>`).join(', ')}</b> →</button>` : '';
   const debtLine = dnames.length
     ? `<p class="body2" style="margin-top:14px">Долг: ${dnames.map(n => `<span style="white-space:nowrap">${esc(n)}</span>`).join(', ')} — идут вне очереди.</p>` : '';
   /* unlinked account: staff are never in the duty roster, so no link prompt */

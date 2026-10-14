@@ -246,8 +246,6 @@ details.faq .policy p{margin:0 0 10px}
 .hday{font-size:13px;font-weight:600;color:var(--ter);margin:18px 0 6px;text-transform:capitalize}
 .hrow{display:flex;gap:12px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--hair);font-size:15px}
 .hrow:last-child{border-bottom:0}
-.skel{border-radius:14px;background:var(--fill);min-height:70px;margin-top:12px;animation:pulse 1.4s ease infinite}
-@keyframes pulse{50%{opacity:.5}}
 .timer{font-variant-numeric:tabular-nums;color:var(--sec);font-size:15px}
 
 /* ---------- celebrate (duty closed) ---------- */
@@ -1723,7 +1721,7 @@ async function vAdmin(){
     /* first entry: build chrome; re-renders only refill the body (no scroll jump) */
     shell(`<div class="sec-head" style="margin-top:4px"><h1 class="stitle">Администрирование</h1>
       <button class="linkbtn" id="adBack">Назад</button></div>
-      <div id="adBody"><div class="skel"></div><div class="skel"></div></div>`, 'profile');
+      <div id="adBody"></div>`, 'profile');
     $('#adBack').onclick = () => { S.view = 'profile'; render(); };
   }
   const body = $('#adBody');

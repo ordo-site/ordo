@@ -340,12 +340,14 @@ const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 /* signature of people+state+roles to skip a no-op re-render after boot (kills the load jerk) */
 const sigPS = () => JSON.stringify([(S.people || []).map(p => { const { claim_code, ...r } = p || {}; return r; }), S.state || {}, S.profile?.role || null, S.membership?.role || null, S.memberRoles || {}]);
+let _skipVinOnce = false; /* второй рендер после стартового из кеша — без анимации */
 function renderAfterBoot(){
   if(S._wasCached){
     S._wasCached = false;
     const same = S._cacheSig && S._cacheSig === sigPS();
     S._cacheSig = null;
     if(same) return; /* fresh data identical to cache: nothing to repaint */
+    _skipVinOnce = true; /* стартовая анимация уже сыграла на кеше */
   }
   render();
 }
@@ -1520,6 +1522,7 @@ function aoaToRows(aoa){
 
 /* ---------------- shell ---------------- */
 function shell(content, active){
+  const _vin = _skipVinOnce ? '' : ' vin'; _skipVinOnce = false;
   const tabs = [['home','Главная',ICON.home],['queue','Очередь',ICON.queue]];
   if(isLeader()) tabs.push(['people','Группа',ICON.group]);
   if(isLeader()) tabs.push(['requests','Заявки',ICON.inbox]);
@@ -1537,7 +1540,7 @@ function shell(content, active){
       <button class="iconbtn themebtn" id="themeBtn" aria-label="Переключить тему"></button>
     </div>
   </div></div>
-  <main class="screen"><div class="wrap vin">${content}</div></main>
+  <main class="screen"><div class="wrap${_vin}">${content}</div></main>
   <nav class="tabbar" aria-label="Навигация"><div class="tabbar-in">
     ${tabs.map(([k,l,ic]) => `<button class="tab${active===k?' on':''}" data-tab="${k}">${ic}<span>${l}</span>${k==='requests'?`<span class="bdg${S._reqN > 0 ? '' : ' hidden'}" id="reqBdg">${S._reqN > 0 ? (S._reqN > 9 ? '9+' : S._reqN) : ''}</span>`:''}</button>`).join('')}
   </div></nav>`;

@@ -1091,16 +1091,23 @@ const People = {
       });
     };
   },
-  async pause(id){
+  pause(id){
     const p = S.people.find(x => x.id === id);
     if(!p) return;
     const paused = !p.data?.paused;
-    await run(async () => {
+    const doIt = () => run(async () => {
       const r = await db.from('people').update({ data:{ ...(p.data || {}), paused } }).eq('id', p.id);
       if(r.error) throw r.error;
       await Store.loadGroup(); render();
       toast(paused ? 'На паузе: ' + p.name : 'Вернули: ' + p.name);
     });
+    if(paused){
+      confirmBox('Поставить на паузу?',
+        `«${p.name}»: дежурства временно назначаться не будут. Место в очереди замораживается — по возвращении встанет на то же место, а не в конец.`,
+        'На паузу', doIt);
+      return;
+    }
+    doIt();
   },
   remove(id){
     const p = S.people.find(x => x.id === id);

@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-41.importfix';})();</script>
+window.__ORDO_BUILD='ordo-42.noheader';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -1529,36 +1529,59 @@ function parseCsv(text){
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
   if(!lines.length) return [];
   const sep = lines[0].includes(';') ? ';' : ',';
+  const cells = l => l.split(sep).map(s => s.trim());
   /* заголовки могут быть не в первой строке (строка-заголовок документа сверху) — ищем */
   let hi = 0, li = -1, fi = -1, found = false;
   for(let i = 0; i < Math.min(lines.length, 5); i++){
-    const h = lines[i].split(sep).map(s => s.trim().toLowerCase());
+    const h = cells(lines[i]).map(s => s.toLowerCase());
     li = h.findIndex(x => x.includes('фамил'));
     fi = h.findIndex(x => x.includes('имя'));
     if(li >= 0 || fi >= 0){ hi = i; found = true; break; }
   }
-  if(!found){ li = -1; fi = -1; }
-  return lines.slice(found ? hi + 1 : 0).map(l => {
-    const c = l.split(sep).map(s => s.trim());
-    const last = normName(li >= 0 ? c[li] : ''), first = normName(fi >= 0 ? c[fi] : (li >= 0 ? '' : c[0]));
+  let start, useLi, useFi;
+  if(found){ start = hi + 1; useLi = li; useFi = fi; }
+  else{
+    /* без заголовков: колонки по порядку (Фамилия, Имя), как в шаблоне;
+       ведущая строка-заголовок документа (заполнена только колонка A) пропускается */
+    start = 0; useLi = 0; useFi = 1;
+    const f0 = cells(lines[0]).filter(Boolean).length;
+    const f1 = lines.length > 1 ? cells(lines[1]).filter(Boolean).length : 0;
+    if(f0 === 1 && f1 >= 2) start = 1;
+  }
+  return lines.slice(start).map(l => {
+    const c = cells(l);
+    const last = normName(useLi >= 0 ? c[useLi] || '' : '');
+    const first = normName(useFi >= 0 ? c[useFi] || '' : '');
     const nm = [last, first].filter(Boolean).join(' ');
     return nm ? { name:nm } : null;
   }).filter(Boolean);
 }
 function aoaToRows(aoa){
   if(!aoa.length) return [];
+  const norm = r => (r || []).map(x => String(x == null ? '' : x));
   /* заголовки могут быть не в первой строке (строка-заголовок документа сверху) — ищем */
   let hi = -1, li = -1, fi = -1;
   for(let i = 0; i < Math.min(aoa.length, 5) && hi < 0; i++){
-    const head = (aoa[i] || []).map(x => String(x == null ? '' : x).toLowerCase());
+    const head = norm(aoa[i]).map(x => x.toLowerCase());
     li = head.findIndex(h => h.includes('фамил'));
     fi = head.findIndex(h => h.includes('имя'));
     if(li >= 0 || fi >= 0) hi = i;
   }
-  if(hi < 0) return [];
-  return aoa.slice(hi + 1).map(r => {
-    const last = li >= 0 ? r[li] : '', first = fi >= 0 ? r[fi] : '';
-    const nm = [normName(last), normName(first)].filter(Boolean).join(' ');
+  let start, useLi, useFi;
+  if(hi >= 0){ start = hi + 1; useLi = li; useFi = fi; }
+  else{
+    /* без заголовков: колонки по порядку (Фамилия, Имя), как в шаблоне;
+       ведущая строка-заголовок документа (заполнена только колонка A) пропускается */
+    start = 0; useLi = 0; useFi = 1;
+    const f0 = norm(aoa[0]).filter(x => x.trim()).length;
+    const f1 = aoa.length > 1 ? norm(aoa[1]).filter(x => x.trim()).length : 0;
+    if(f0 === 1 && f1 >= 2) start = 1;
+  }
+  return aoa.slice(start).map(r => {
+    const rr = norm(r);
+    const last = normName(useLi >= 0 ? rr[useLi] || '' : '');
+    const first = normName(useFi >= 0 ? rr[useFi] || '' : '');
+    const nm = [last, first].filter(Boolean).join(' ');
     return nm ? { name:nm } : null;
   }).filter(Boolean);
 }

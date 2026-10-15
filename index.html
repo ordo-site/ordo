@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-44.pwfile';})();</script>
+window.__ORDO_BUILD='ordo-45.peekpw';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -1351,10 +1351,35 @@ const Authz = {
       catch(e){ closeSheet(); throw e; }
       await Store.loadGroup();
       const accs = d.accounts || [];
-      if(accs.length) S._lastPw = accs; /* пароли живут только в памяти — до выхода или перезагрузки */
+      Authz.rememberPw(accs); /* пароли живут только в памяти — до выхода или перезагрузки */
       render();
       Authz.showPasswords(accs);
     });
+  },
+  rememberPw(accs){ /* копим выданные пароли: новый по человеку затирает старый */
+    const map = new Map((S._lastPw || []).map(x => [x.person_id, x]));
+    (accs || []).forEach(a => { if(a && a.person_id) map.set(a.person_id, a); });
+    S._lastPw = [...map.values()];
+  },
+  resetDialog(personId){
+    const known = (S._lastPw || []).find(x => x.person_id === personId);
+    if(!known){ /* выданного пароля в памяти нет — только сброс */
+      confirmBox('Сбросить пароль?', 'Старый пароль перестанет работать, новый покажем один раз.', 'Сбросить', () => Authz.resetPassword(personId), true);
+      return;
+    }
+    const w = sheet(`<h3>Пароль студента</h3>
+      <p class="body2" style="margin-top:8px">Можно показать выданный пароль — он действует, только если студент не менял его сам в профиле. Сброс выдаст новый и убьёт старый.</p>
+      <div class="actions"><button class="btn btn-q" id="rpNo">Отмена</button><button class="btn btn-q" id="rpPeek">Показать выданный</button><button class="btn btn-danger-q" id="rpGo">Сбросить новый</button></div>`);
+    w.querySelector('#rpNo').onclick = closeSheet;
+    w.querySelector('#rpPeek').onclick = () => {
+      const k = (S._lastPw || []).find(x => x.person_id === personId) || known;
+      sheet(`<h3>Выданный пароль</h3><p class="body2" style="margin-top:6px">Действует, только если студент не менял пароль сам.</p>
+        <div class="rows" style="margin-top:12px"><div class="row"><div class="grow"><b>${esc(k.name)}</b><div class="sub">${esc(k.login)} · ${esc(k.password)}</div></div></div></div>
+        <div class="actions"><button class="btn btn-q" id="pkCopy">Скопировать</button><button class="btn btn-p" id="pkOk">Готово</button></div>`);
+      const cp = $('#pkCopy'); if(cp) cp.onclick = async () => { try{ await navigator.clipboard.writeText(`${k.login} — ${k.password}`); toast('Скопировано'); }catch(_){ toast('Не скопировалось'); } };
+      $('#pkOk').onclick = closeSheet;
+    };
+    w.querySelector('#rpGo').onclick = () => Authz.resetPassword(personId);
   },
   showPasswords(accs){
     const list = (accs || []).map(a => `${a.name} — ${a.login} — ${a.password}`).join('\n');
@@ -1381,6 +1406,7 @@ const Authz = {
       const d = await Authz.callAccounts({ action:'reset', person_id:personId });
       const a = (d.accounts || [])[0];
       if(a){
+        Authz.rememberPw([a]); /* свежий пароль тоже можно подсмотреть без повторного сброса */
         sheet(`<h3>Новый пароль</h3><div class="rows" style="margin-top:12px"><div class="row"><div class="grow"><b>${esc(a.name)}</b><div class="sub">${esc(a.login)} · ${esc(a.password)}</div></div></div></div><div class="actions"><button class="btn btn-p" id="rpOk">Готово</button></div>`);
         $('#rpOk').onclick = closeSheet;
       } else toast('Готово');
@@ -2052,7 +2078,7 @@ async function vAdmin(){
     $('#mkAcc').onclick = () => Authz.createAccounts();
     const pwa = $('#pwAgain'); if(pwa) pwa.onclick = () => Authz.showPasswords(S._lastPw);
     body.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { const [u, m] = b.dataset.role.split('|'); Authz.setRole(u, m === '1', b); });
-    body.querySelectorAll('[data-rst]').forEach(b => b.onclick = () => confirmBox('Сбросить пароль?', 'Старый пароль перестанет работать, новый покажем один раз.', 'Сбросить', () => Authz.resetPassword(b.dataset.rst), true));
+    body.querySelectorAll('[data-rst]').forEach(b => b.onclick = () => Authz.resetDialog(b.dataset.rst));
     body.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => Authz.restoreVersion(b.dataset.ver));
     $('#adPause').onclick = () => Authz.setPaused(!paused);
     $('#adExp').onclick = () => Authz.exportExcel();

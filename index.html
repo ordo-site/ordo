@@ -26,7 +26,7 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-42.noheader';})();</script>
+window.__ORDO_BUILD='ordo-43.importgroup';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -1505,10 +1505,12 @@ function importPeople(){
     await run(async () => {
       const rows = await readImport(f);
       if(!rows.length) throw new Error('Не нашёл имён в файле');
-      const r = await db.rpc('admin_import_people', { p_rows:rows });
+      /* admin_import_people требует group_name в каждой строке — шлём текущую группу */
+      const r = await db.rpc('admin_import_people', { p_rows: rows.map(x => ({ ...x, group_name: S.group.name })) });
       if(r.error) throw r.error;
       await Store.loadGroup(); render(); closeSheet();
-      toast(`Добавлено: ${r.data?.created || 0} · Уже были: ${r.data?.existing || 0}`);
+      const inv = r.data?.invalid || 0;
+      toast(`Добавлено: ${r.data?.created || 0} · Уже были: ${r.data?.existing || 0}` + (inv ? ` · Пропущено: ${inv}` : ''));
     });
   };
 }

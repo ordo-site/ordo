@@ -1082,13 +1082,20 @@ const People = {
       if(!name){ toast('Введите фамилию'); return; }
       const mkAcc = $('#npAcc').checked;
       closeSheet();
-      run(async () => {
-        const { data, error } = await db.rpc('admin_create_person', { p_group_id:S.group.id, p_name:name });
-        if(error) throw error;
-        await Store.loadGroup(); render();
-        toast(data?.already_exists ? 'Такой участник уже есть' : 'Участник добавлен');
-        if(mkAcc && data && !data.already_exists) Authz.createAccounts();
-      });
+      /* NB: Authz.createAccounts() обёрнут в свой run(), а run() молча отбрасывает
+         вложенные вызовы, пока S.busy=true. Поэтому дожидаемся конца внешнего run —
+         иначе создание аккаунтов проглатывалось без следа. */
+      (async () => {
+        let wantAcc = false;
+        await run(async () => {
+          const { data, error } = await db.rpc('admin_create_person', { p_group_id:S.group.id, p_name:name });
+          if(error) throw error;
+          await Store.loadGroup(); render();
+          toast(data?.already_exists ? 'Такой участник уже есть' : 'Участник добавлен');
+          wantAcc = !!(mkAcc && data && !data.already_exists);
+        });
+        if(wantAcc) Authz.createAccounts();
+      })();
     };
   },
   pause(id){

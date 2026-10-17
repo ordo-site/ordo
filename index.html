@@ -26,12 +26,12 @@
 <title>Ordo</title>
 <script>(function(){var h=location.hostname,ok=['ordo-site.github.io','localhost','127.0.0.1',''];
 if(ok.indexOf(h)<0&&location.protocol!=='file:'){document.documentElement.innerHTML='<body style="margin:0;background:#000;color:#fff;font:16px -apple-system,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;text-align:center;padding:24px"><div><h2>Ordo</h2><p style="opacity:.7">Эта копия не авторизована.<br>Оригинал: ordo-site.github.io</p></div></body>';throw new Error('unauthorized host')}
-window.__ORDO_BUILD='ordo-57.donaters';})();</script>
+window.__ORDO_BUILD='ordo-58.mustchange';})();</script>
 <style>
 /* Ordo · Jobs-2026 design layer */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;overscroll-behavior-y:none}
-#ptr{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translate(-50%,-80px);z-index:99990;display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--hair);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;color:var(--text);box-shadow:var(--shadow);transition:transform .25s var(--spring);pointer-events:none}#ptr .spin{width:14px;height:14px}
+#ptr{position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translate(-50%,-80px);z-index:99990;display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid var(--hair);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;color:var(--text);box-shadow:none;transition:transform .25s var(--spring);pointer-events:none}#ptr .spin{width:14px;height:14px}
 :root{
   color-scheme:dark;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Helvetica Neue",system-ui,"Segoe UI",Roboto,sans-serif;
@@ -613,6 +613,7 @@ const Store = {
         if(c && c.group){ Object.assign(S, { profile:c.profile, group:c.group, membership:c.membership, people:c.people, state:c.state, memberRoles:c.memberRoles || {}, stateVer:null, fromCache:true }); if(c.reqN != null) S._reqN = c.reqN; S._cacheSig = sigPS(); S._wasCached = true; render(); }
       }catch(_){}
       await Store.loadUser();
+      if(Auth.mustChangePrompt()) return; /* вход по выданному паролю: сначала свой, остальное потом */
       Consent.check();
       Onboard.maybe();
     }catch(e){
@@ -847,6 +848,37 @@ const Auth = {
         closeSheet(); toast('Пароль обновлён');
       });
     };
+  },
+  /* Блокирующий промпт после входа по выданному паролю: свой пароль обязателен */
+  mustChangePrompt(){
+    if(!S.user?.user_metadata?.must_change || document.getElementById('mcWrap')) return false;
+    sheet(`<div id="mcWrap"><h3>Установите свой пароль</h3>
+      <p class="body2" style="margin-top:6px">Вы вошли по временному паролю. Придумайте свой — минимум 8 символов, никому его не сообщайте.</p>
+      <div class="field" style="margin-top:14px"><label>Новый пароль</label>
+      <div class="pwbox"><input class="inp" id="mcPw" type="password" autocomplete="new-password">
+      <button type="button" class="eyebtn" id="mcEye" aria-label="Показать пароль">${ICON.eye}</button></div></div>
+      <div class="err" id="mcErr"></div>
+      <div class="actions"><button class="btn btn-p" id="mcYes" style="width:100%">Сохранить</button></div></div>`, { lock:true });
+    const inp = $('#mcPw');
+    $('#mcEye').onclick = e => { const s = inp.type==='password'; inp.type = s?'text':'password'; e.currentTarget.innerHTML = s?ICON.eyeOff:ICON.eye; };
+    setTimeout(() => inp.focus(), 400);
+    $('#mcYes').onclick = async () => {
+      const v = inp.value;
+      if(v.length < 8){ const m = $('#mcErr'); m.textContent = 'Минимум 8 символов.'; m.classList.add('show'); return; }
+      await run(async () => {
+        const { error } = await db.auth.updateUser({ password:v, data:{ must_change:false } });
+        if(error){
+          if(/different/i.test(error.message)) throw new Error('Новый пароль должен отличаться от выданного.');
+          throw error;
+        }
+        const { data:{ session } } = await db.auth.refreshSession();
+        if(session) S.user = session.user;
+        try{ S.user.user_metadata = { ...(S.user.user_metadata||{}), must_change:false }; }catch(_){}
+        closeSheet(); toast('Пароль обновлён');
+        Consent.check(); Onboard.maybe();
+      });
+    };
+    return true;
   }
 };
 
@@ -2294,17 +2326,18 @@ function initPTR(){
     if(!S.user || S.busy || e.touches.length !== 1){ y0 = null; return; }
     const t = e.target;
     if(t.closest && t.closest('.sheet,.modal,input,textarea,select,.qgrip')){ y0 = null; return; }
-  window.__ptrCancel = () => { y0 = null; pulling = false; dy = 0; el.style.transform = ''; };
+  window.__ptrCancel = () => { y0 = null; pulling = false; dy = 0; el.style.transform = ''; el.style.boxShadow = 'none'; };
     y0 = e.touches[0].clientY; pulling = false; dy = 0;
   }, { passive:true });
   document.addEventListener('touchmove', e => {
     if(y0 === null || e.touches.length !== 1) return;
     const d = e.touches[0].clientY - y0;
-    if(d <= 0 || window.scrollY > 0){ if(dy > 0){ dy = 0; el.style.transform = ''; } return; }
+    if(d <= 0 || window.scrollY > 0){ if(dy > 0){ dy = 0; el.style.transform = ''; el.style.boxShadow = 'none'; } return; }
     if(d > 8) pulling = true;
     if(pulling){
       e.preventDefault();
       el.style.transition = 'none';
+      el.style.boxShadow = 'var(--shadow)';
       dy = Math.min(d * 0.5, 110);
       el.style.transform = 'translate(-50%,' + (dy - 80) + 'px)';
     }
@@ -2313,10 +2346,10 @@ function initPTR(){
     el.style.transition = '';
     const doIt = pulling && dy >= TH && S.user && !S.busy;
     y0 = null; pulling = false; dy = 0;
-    if(!doIt){ el.style.transform = ''; return; }
+    if(!doIt){ el.style.transform = ''; el.style.boxShadow = 'none'; return; }
     el.style.transform = 'translate(-50%,0)';
     const v = S.view;
-    run(() => Store.loadUser()).then(() => { S.view = v; render(); toast('Обновлено'); el.style.transform = ''; checkVersion(false); });
+    run(() => Store.loadUser()).then(() => { S.view = v; render(); toast('Обновлено'); el.style.transform = ''; el.style.boxShadow = 'none'; checkVersion(false); });
   });
 }
 
